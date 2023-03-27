@@ -21,6 +21,7 @@ rule all:
         expand("mirbase_alignment/{sample}.srt.dedup.bam", sample=sample_list),
         expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
         expand("genome_alignment/{sample}.srt.dedup.bam", sample=sample_list),
+        "metrics/mirna_genome_alignment_metrics.tsv",
         "genome_counts/featurecounts.readcounts.ann.tsv",
         "mirbase_counts/mirbase.readcounts.tsv",
         "plots/PCA_Variance_Bar_Plot.png",
@@ -50,6 +51,7 @@ rule all:
 rule umitools:
     output: 
         "umi_reads/{sample}.umi.fastq.gz",
+        "umi_reads/{sample}.umi.log.txt",
     params:
         sample = lambda wildcards:  wildcards.sample,
         umitools_path = config["umitools_path"],
@@ -61,7 +63,7 @@ rule umitools:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-        ~/tools/umitools/1.1.0/umi_tools extract --extract-method=regex --bc-pattern='.+(?P<discard_1>AACTGTAGGCACCATCAAT){{s<=2}}(?P<umi_1>.{{12}})(?P<discard_2>.+)' -I {params.fastq_file_1} -S umi_reads/{params.sample}.umi.fastq.gz
+        ~/tools/umitools/1.1.0/umi_tools extract --extract-method=regex --bc-pattern='.+(?P<discard_1>AACTGTAGGCACCATCAAT){{s<=2}}(?P<umi_1>.{{12}})(?P<discard_2>.+)' -I {params.fastq_file_1} -S umi_reads/{params.sample}.umi.fastq.gz -L umi_reads/{params.sample}.umi.log.txt
 """
 
 
@@ -81,7 +83,7 @@ rule mirbase_alignment:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-        {params.bowtie_path}  -x {params.bowtie_index} -U {input}  -p 12  --norc   --un mirbase_alignment/{params.sample}.unalign.fastq -S mirbase_alignment/{params.sample}.aln.sam
+        {params.bowtie_path}  -x {params.bowtie_index} -U {input}  -p 12  --norc   --un mirbase_alignment/{params.sample}.unalign.fastq -S mirbase_alignment/{params.sample}.aln.sam 2>mirbase_alignment/{params.sample}.log.txt
 
         {params.samtools_path} view -Sb mirbase_alignment/{params.sample}.aln.sam | {params.samtools_path} sort -@ 4 - > mirbase_alignment/{params.sample}.srt.bam
         {params.samtools_path} index mirbase_alignment/{params.sample}.srt.bam
@@ -164,7 +166,7 @@ rule genome_alignment:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-        {params.bowtie_path}  -x {params.bowtie_genome_index} -U {input}  -p 12     --un genome_alignment/{params.sample}.unalign.fastq -S genome_alignment/{params.sample}.aln.sam
+        {params.bowtie_path}  -x {params.bowtie_genome_index} -U {input}  -p 12     --un genome_alignment/{params.sample}.unalign.fastq -S genome_alignment/{params.sample}.aln.sam 2>genome_alignment/{params.sample}_genome.log.txt
 
         {params.samtools_path} view -Sb genome_alignment/{params.sample}.aln.sam | {params.samtools_path} sort -@ 4 - > genome_alignment/{params.sample}.srt.bam
         {params.samtools_path} index genome_alignment/{params.sample}.srt.bam
@@ -219,6 +221,26 @@ rule genome_counts:
         python {params.fc_ann_script} {params.gtf} genome_counts/featurecounts.readcounts.tsv > genome_counts/featurecounts.readcounts.ann.tsv
 """
 
+rule alignment_metrics_counts:
+    input:  
+        expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
+
+    output: 
+        "metrics/mirna_genome_alignment_metrics.tsv",
+        "metrics/mirna_genome_alignment_metrics.xlsx",
+
+    params:
+        gtf = config['annotation_gtf'],
+    conda:
+        "env_config/featurecounts.yaml",
+
+    resources: cpus="1", maxtime="8:00:00", mem_mb="2gb",
+
+    shell: """
+        mkdir -p metrics
+        python scripts/qc_metrics.py umi_reads mirbase_alignment genome_alignment > metrics/mirna_genome_alignment_metrics.tsv
+        python scripts/qc_metrics_xlsx.py metrics/mirna_genome_alignment_metrics.tsv metrics/mirna_genome_alignment_metrics.xlsx
+"""
 
 rule pca_plots:
     input: "mirbase_counts/mirbase.readcounts.tsv",
