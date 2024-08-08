@@ -48,7 +48,7 @@ for logfile in umi_log_paths:
 #print (umi_data_dict)
 
 
-mir_mapping_log_paths = glob.glob(mir_mapping_dir+'/*.log.txt')
+mir_mapping_log_paths = glob.glob(mir_mapping_dir+'/*mirbase.log.txt')
 mirmap_data_dict = {}
 
 for logfile in mir_mapping_log_paths:
