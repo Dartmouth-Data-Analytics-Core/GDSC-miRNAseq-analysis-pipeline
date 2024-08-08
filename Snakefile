@@ -83,7 +83,7 @@ rule mirbase_alignment:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-        {params.bowtie_path}  -x {params.bowtie_index} -U {input}  -p 12  --norc   --un mirbase_alignment/{params.sample}.unalign.fastq -S mirbase_alignment/{params.sample}.aln.sam 2>mirbase_alignment/{params.sample}.log.txt
+        {params.bowtie_path}  -x {params.bowtie_index} -U {input}  -p 12  --norc --very-sensitive-local --un mirbase_alignment/{params.sample}.unalign.fastq -S mirbase_alignment/{params.sample}.aln.sam 2>mirbase_alignment/{params.sample}.log.txt
 
         {params.samtools_path} view -Sb mirbase_alignment/{params.sample}.aln.sam | {params.samtools_path} sort -@ 4 - > mirbase_alignment/{params.sample}.srt.bam
         {params.samtools_path} index mirbase_alignment/{params.sample}.srt.bam
