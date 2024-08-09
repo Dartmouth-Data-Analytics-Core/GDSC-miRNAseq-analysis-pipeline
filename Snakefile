@@ -100,13 +100,14 @@ rule mirbase_dedup:
         sample = lambda wildcards:  wildcards.sample,
         bowtie_path = config["bowtie_path"],
         bowtie_index = config["bowtie_index"],
+        umitools_path = config["umitools_path"],
         samtools_path = config["samtools_path"],
     conda:
         "env_config/cutadapt.yaml",
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-    ~/tools/umitools/1.1.0/umi_tools dedup --method=unique -I mirbase_alignment/{params.sample}.srt.bam -S mirbase_alignment/{params.sample}.srt.dedup.bam
+    {params.umitools_path} dedup --method=unique -I mirbase_alignment/{params.sample}.srt.bam -S mirbase_alignment/{params.sample}.srt.dedup.bam
     {params.samtools_path} index mirbase_alignment/{params.sample}.srt.dedup.bam
         
 """
@@ -183,13 +184,14 @@ rule genome_dedup:
         sample = lambda wildcards:  wildcards.sample,
         bowtie_path = config["bowtie_path"],
         bowtie_index = config["bowtie_index"],
+        umitools_path = config["umitools_path"],
         samtools_path = config["samtools_path"],
     conda:
         "env_config/cutadapt.yaml",
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-    ~/tools/umitools/1.1.0/umi_tools dedup --method=unique -I genome_alignment/{params.sample}.srt.bam -S genome_alignment/{params.sample}.srt.dedup.bam
+    {params.umitools_path} dedup --method=unique -I genome_alignment/{params.sample}.srt.bam -S genome_alignment/{params.sample}.srt.dedup.bam
     {params.samtools_path} index genome_alignment/{params.sample}.srt.dedup.bam
         
 """
