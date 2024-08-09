@@ -63,7 +63,7 @@ rule umitools:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-        ~/tools/umitools/1.1.0/umi_tools extract --extract-method=regex --bc-pattern='.+(?P<discard_1>AACTGTAGGCACCATCAAT){{s<=2}}(?P<umi_1>.{{12}})(?P<discard_2>.+)' -I {params.fastq_file_1} -S umi_reads/{params.sample}.umi.fastq.gz -L umi_reads/{params.sample}.umi.log.txt
+        {params.umitools_path} extract --extract-method=regex --bc-pattern='.+(?P<discard_1>AACTGTAGGCACCATCAAT){{s<=2}}(?P<umi_1>.{{12}})(?P<discard_2>.+)' -I {params.fastq_file_1} -S umi_reads/{params.sample}.umi.fastq.gz -L umi_reads/{params.sample}.umi.log.txt
 """
 
 
