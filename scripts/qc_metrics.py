@@ -106,16 +106,15 @@ sample_list.sort()
 print ('\t'.join(['Metric'] + sample_list))
 print ('\t'.join(['# of reads'] + [str(umi_data_dict[x][0]) for x in sample_list]))
 print ('\t'.join(['# of reads missing UMI'] + [str(umi_data_dict[x][1]) for x in sample_list]))
-print ('\t'.join(['# of reads missing UMI'] + [str(round((umi_data_dict[x][1]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
+print ('\t'.join(['% of reads missing UMI'] + [str(round((umi_data_dict[x][1]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
 print ('\t'.join(['# of UMI-containing reads'] + [str(umi_data_dict[x][2]) for x in sample_list]))
-print ('\t'.join(['# of reads missing UMI'] + [str(round((umi_data_dict[x][2]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
+print ('\t'.join(['% of UMI-containing reads'] + [str(round((umi_data_dict[x][2]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
 print ('\t'.join(['# of reads mapping to mirna'] + [str(mirmap_data_dict[x][0]) for x in sample_list]))
-print ('\t'.join(['# of reads missing UMI'] + [str(round((mirmap_data_dict[x][0]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
+print ('\t'.join(['% of reads mapping to mirna'] + [str(round((mirmap_data_dict[x][0]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
 print ('\t'.join(['# of reads mapping to genome'] + [str(genome_data_dict[x][0]) for x in sample_list]))
-print ('\t'.join(['# of reads missing UMI'] + [str(round((genome_data_dict[x][0]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
+print ('\t'.join(['% of reads mapping to genome'] + [str(round((genome_data_dict[x][0]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
 print ('\t'.join(['# of reads unaligned'] + [str(genome_data_dict[x][1]) for x in sample_list]))
-print ('\t'.join(['# of reads missing UMI'] + [str(round((genome_data_dict[x][1]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
-
+print ('\t'.join(['% of reads unaligned'] + [str(round((genome_data_dict[x][1]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
 
 
 
