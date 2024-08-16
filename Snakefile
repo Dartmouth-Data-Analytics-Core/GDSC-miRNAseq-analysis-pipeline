@@ -58,8 +58,7 @@ rule umitools:
         fastq_file_1 = lambda wildcards: samples_df.loc[wildcards.sample, "fastq_1"],
         layout=config["layout"],
         #umi_bc_pattern=config["umi_bc_pattern"]
-    conda:
-        "env_config/cutadapt.yaml",
+
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
@@ -78,8 +77,7 @@ rule mirbase_alignment:
         bowtie_path = config["bowtie_path"],
         bowtie_index = config["bowtie_index"],
         samtools_path = config["samtools_path"],
-    conda:
-        "env_config/cutadapt.yaml",
+
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
@@ -102,8 +100,7 @@ rule mirbase_dedup:
         bowtie_index = config["bowtie_index"],
         umitools_path = config["umitools_path"],
         samtools_path = config["samtools_path"],
-    conda:
-        "env_config/cutadapt.yaml",
+
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
@@ -124,8 +121,7 @@ rule mirbase_stats:
         bowtie_path = config["bowtie_path"],
         bowtie_index = config["bowtie_index"],
         samtools_path = config["samtools_path"],
-    conda:
-        "env_config/cutadapt.yaml",
+
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
@@ -142,8 +138,7 @@ rule mirbase_count:
     output:
         "mirbase_counts/mirbase.readcounts.tsv",
     params:
-    conda:
-        "env_config/cutadapt.yaml",
+
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
@@ -162,8 +157,7 @@ rule genome_alignment:
         bowtie_path = config["bowtie_path"],
         bowtie_genome_index = config["bowtie_genome_index"],
         samtools_path = config["samtools_path"],
-    conda:
-        "env_config/cutadapt.yaml",
+    
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
@@ -191,8 +185,7 @@ rule genome_dedup:
         bowtie_index = config["bowtie_index"],
         umitools_path = config["umitools_path"],
         samtools_path = config["samtools_path"],
-    conda:
-        "env_config/cutadapt.yaml",
+    
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
