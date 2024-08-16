@@ -30,3 +30,7 @@ report_section_order:
         order: 850
     featurecounts:
         order: 750
+        
+table_columns_visible:
+  featureCounts: False  
+  Samtools: False
