@@ -40,7 +40,6 @@ rule all:
         "multiqc_report.html"
 
     shell: """
-        #multiqc fastqc alignment markdup metrics featurecounts
         {params.multiqc}  genome_alignment  mirbase_alignment  genome_counts mirbase_counts  umi_reads
 
 
