@@ -34,3 +34,8 @@ report_section_order:
 table_columns_visible:
   featureCounts: False  
   Samtools: False
+
+fn_ignore_files:
+  - "*.flagstat"
+  - "*.idxstats"
+

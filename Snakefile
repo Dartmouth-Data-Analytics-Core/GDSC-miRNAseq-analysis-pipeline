@@ -16,16 +16,21 @@ sample_list = list(samples_df['sample_id'])
 
 rule all:
     input:
+        expand("trimming/{sample}.R1.trim.fastq.gz", sample=sample_list),
+        expand("trimming/{sample}.cutadapt.report", sample=sample_list),    
         expand("umi_reads/{sample}.umi.fastq.gz", sample=sample_list),
         expand("mirbase_alignment/{sample}.srt.bam", sample=sample_list),
         expand("mirbase_alignment/{sample}.srt.dedup.bam", sample=sample_list),
         expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
         expand("genome_alignment/{sample}.srt.dedup.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.srt.dedup.filt.bam", sample=sample_list),
         "metrics/mirna_genome_alignment_metrics.tsv",
         "genome_counts/featurecounts.readcounts.ann.tsv",
+        "genome_counts/featurecounts.readcounts_tpm.tsv",
+        "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
         "mirbase_counts/mirbase.readcounts.tsv",
+        "mirbase_counts/mirbase.readcounts_tpm.tsv",
         "plots/PCA_Variance_Bar_Plot.png",
-        #"featurecounts/featurecounts.readcounts_fpkm.ann.tsv",
         expand("mirbase_alignment/{sample}.srt.dedup.bam.idxstats", sample=sample_list),
         expand("mirbase_alignment/{sample}.srt.dedup.bam.flagstat", sample=sample_list)
                 
@@ -41,13 +46,34 @@ rule all:
 
     shell: """
         {params.multiqc}  genome_alignment  mirbase_alignment  genome_counts mirbase_counts  umi_reads
-
-
 """
 
 
+rule trimming:
+    output: 
+        "trimming/{sample}.R1.trim.fastq.gz",
+        "trimming/{sample}.cutadapt.report"
+    params:
+        sample = lambda wildcards:  wildcards.sample,
+        fastq_file_1 = lambda wildcards: samples_df.loc[wildcards.sample, "fastq_1"],
+    conda:
+        "env_config/cutadapt.yaml",
+    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
+    shell: """
+        cutadapt \
+            -o trimming/{params.sample}.R1.trim.fastq.gz \
+            {params.fastq_file_1} \
+            -m 1 \
+            --nextseq-trim=30 \
+            -j {resources.cpus} \
+            -q 30 \
+            --max-n 0.8 \
+            --trim-n > trimming/{params.sample}.cutadapt.report
+    """
 
 rule umitools:
+    input: 
+        "trimming/{sample}.R1.trim.fastq.gz",
     output: 
         "umi_reads/{sample}.umi.fastq.gz",
         "umi_reads/{sample}.umi.log.txt",
@@ -55,13 +81,15 @@ rule umitools:
         sample = lambda wildcards:  wildcards.sample,
         umitools_path = config["umitools_path"],
         fastq_file_1 = lambda wildcards: samples_df.loc[wildcards.sample, "fastq_1"],
-        layout=config["layout"],
-        #umi_bc_pattern=config["umi_bc_pattern"]
-
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-        {params.umitools_path} extract --extract-method=regex --bc-pattern='.+(?P<discard_1>AACTGTAGGCACCATCAAT){{s<=2}}(?P<umi_1>.{{12}})(?P<discard_2>.+)' -I {params.fastq_file_1} -S umi_reads/{params.sample}.umi.fastq.gz -L umi_reads/{params.sample}.umi.log.txt
+        {params.umitools_path} extract \
+            --extract-method=regex \
+            --bc-pattern='.+(?P<discard_1>AACTGTAGGCACCATCAAT){{s<=2}}(?P<umi_1>.{{12}})(?P<discard_2>.+)' \
+            -I {input} \
+            -S umi_reads/{params.sample}.umi.fastq.gz \
+            -L umi_reads/{params.sample}.umi.log.txt
 """
 
 
@@ -158,6 +186,7 @@ rule mirbase_count:
 
     output:
         "mirbase_counts/mirbase.readcounts.tsv",
+        "mirbase_counts/mirbase.readcounts_tpm.tsv",
     params:
 
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
@@ -166,6 +195,9 @@ rule mirbase_count:
     echo -ne mirbase_ID"\t"Length"\t" > mirbase_counts/mirbase.readcounts.tsv
     echo {input} | tr " " "\t"| sed s/"mirbase_alignment\/"//g| sed s/".srt.dedup.bam.idxstats"//g >> mirbase_counts/mirbase.readcounts.tsv
     paste {input}| awk -f scripts/mirbase_counts.awk >> mirbase_counts/mirbase.readcounts.tsv
+
+    # run TPM normalization 
+    python scripts/mirbase-readcnt_to_tpm.py mirbase_counts/mirbase.readcounts.tsv
 """    
 
 rule genome_alignment:
@@ -188,8 +220,9 @@ rule genome_alignment:
             --very-sensitive-local \
             --un genome_alignment/{params.sample}.unalign.fastq \
             -S genome_alignment/{params.sample}.aln.sam 2>genome_alignment/{params.sample}_genome.log.txt
-
-        {params.samtools_path} view -Sb genome_alignment/{params.sample}.aln.sam | {params.samtools_path} sort -@ 4 - > genome_alignment/{params.sample}.srt.bam
+        # sort and index 
+        {params.samtools_path} view -Sb genome_alignment/{params.sample}.aln.sam | \
+            {params.samtools_path} sort -@ 4 - > genome_alignment/{params.sample}.srt.bam
         {params.samtools_path} index genome_alignment/{params.sample}.srt.bam
         
 """
@@ -200,6 +233,8 @@ rule genome_dedup:
         "genome_alignment/{sample}.srt.bam",
     output:
         "genome_alignment/{sample}.srt.dedup.bam",
+        "genome_alignment/{sample}.srt.dedup.filt.bam",
+
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie_path = config["bowtie_path"],
@@ -211,18 +246,22 @@ rule genome_dedup:
 
     shell: """
     {params.umitools_path} dedup --method=unique -I genome_alignment/{params.sample}.srt.bam -S genome_alignment/{params.sample}.srt.dedup.bam
-    {params.samtools_path} index genome_alignment/{params.sample}.srt.dedup.bam
-        
+    # filter by length and gap presence 
+    {params.samtools_path} view -h genome_alignment/{params.sample}.srt.dedup.bam | \
+        awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ((length($10) > 16 && length($10) <= 28) && ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/)) {{print $0}}' | \
+        {params.samtools_path} view -Sb -> genome_alignment/{params.sample}.srt.dedup.filt.bam
+    {params.samtools_path} index genome_alignment/{params.sample}.srt.dedup.filt.bam
 """
 
 
 rule genome_counts:
     input:  
-        expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.srt.dedup.filt.bam", sample=sample_list),
 
     output: 
         "genome_counts/featurecounts.readcounts.ann.tsv",
-
+        "genome_counts/featurecounts.readcounts_tpm.tsv",
+        "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
 
     params:
         featurecounts = config['featurecounts_path'],
@@ -289,7 +328,7 @@ rule pca_plots:
         python {params.pca_plot_script} \
         mirbase_counts/mirbase.readcounts.tsv \
         plots \
-        --genes_considered {params.num_genes} \
+        --genes_considered {params.num_genes} 
 #        --color_file sample_ref/sample_colors_hex.tsv
     """
 
