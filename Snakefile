@@ -21,9 +21,13 @@ rule all:
         expand("mirbase_alignment/{sample}.srt.dedup.bam", sample=sample_list),
         expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
         expand("genome_alignment/{sample}.srt.dedup.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.srt.dedup.filt.bam", sample=sample_list),
         "metrics/mirna_genome_alignment_metrics.tsv",
         "genome_counts/featurecounts.readcounts.ann.tsv",
+        "genome_counts/featurecounts.readcounts_tpm.tsv",
+        "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
         "mirbase_counts/mirbase.readcounts.tsv",
+        "mirbase_counts/mirbase.readcounts_tpm.tsv",
         "plots/PCA_Variance_Bar_Plot.png",
         #"featurecounts/featurecounts.readcounts_fpkm.ann.tsv",
         expand("mirbase_alignment/{sample}.srt.dedup.bam.idxstats", sample=sample_list),
@@ -158,6 +162,7 @@ rule mirbase_count:
 
     output:
         "mirbase_counts/mirbase.readcounts.tsv",
+        "mirbase_counts/mirbase.readcounts_tpm.tsv",
     params:
 
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
@@ -166,6 +171,9 @@ rule mirbase_count:
     echo -ne mirbase_ID"\t"Length"\t" > mirbase_counts/mirbase.readcounts.tsv
     echo {input} | tr " " "\t"| sed s/"mirbase_alignment\/"//g| sed s/".srt.dedup.bam.idxstats"//g >> mirbase_counts/mirbase.readcounts.tsv
     paste {input}| awk -f scripts/mirbase_counts.awk >> mirbase_counts/mirbase.readcounts.tsv
+
+    # run TPM normalization 
+    python scripts/mirbase-readcnt_to_tpm.py mirbase_counts/mirbase.readcounts.tsv
 """    
 
 rule genome_alignment:
@@ -188,8 +196,9 @@ rule genome_alignment:
             --very-sensitive-local \
             --un genome_alignment/{params.sample}.unalign.fastq \
             -S genome_alignment/{params.sample}.aln.sam 2>genome_alignment/{params.sample}_genome.log.txt
-
-        {params.samtools_path} view -Sb genome_alignment/{params.sample}.aln.sam | {params.samtools_path} sort -@ 4 - > genome_alignment/{params.sample}.srt.bam
+        # sort and index 
+        {params.samtools_path} view -Sb genome_alignment/{params.sample}.aln.sam | \
+            {params.samtools_path} sort -@ 4 - > genome_alignment/{params.sample}.srt.bam
         {params.samtools_path} index genome_alignment/{params.sample}.srt.bam
         
 """
@@ -200,6 +209,8 @@ rule genome_dedup:
         "genome_alignment/{sample}.srt.bam",
     output:
         "genome_alignment/{sample}.srt.dedup.bam",
+        "genome_alignment/{sample}.srt.dedup.filt.bam",
+
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie_path = config["bowtie_path"],
@@ -221,7 +232,7 @@ rule genome_dedup:
 
 rule genome_counts:
     input:  
-        expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.srt.dedup.filt.bam", sample=sample_list),
 
     output: 
         "genome_counts/featurecounts.readcounts.ann.tsv",
