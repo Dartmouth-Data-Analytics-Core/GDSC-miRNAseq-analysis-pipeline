@@ -80,11 +80,33 @@ rule mirbase_alignment:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-        {params.bowtie_path}  -x {params.bowtie_index} -U {input}  -p 12  --norc --very-sensitive-local --un mirbase_alignment/{params.sample}.unalign.fastq -S mirbase_alignment/{params.sample}.aln.sam 2>mirbase_alignment/{params.sample}_mirbase.log.txt
+        {params.bowtie_path} \
+            -x {params.bowtie_index} \
+            -U {input} -p 12 \
+            --norc \
+            -D 20 -R 3 -N 1 -L 12 -i S,1,0.50 \
+            --un mirbase_alignment/{params.sample}.unalign.fastq \
+            -S mirbase_alignment/{params.sample}.aln.sam 2>mirbase_alignment/{params.sample}_mirbase.log.txt
 
-        {params.samtools_path} view -Sb mirbase_alignment/{params.sample}.aln.sam | {params.samtools_path} sort -@ 4 - > mirbase_alignment/{params.sample}.srt.bam
-        {params.samtools_path} index mirbase_alignment/{params.sample}.srt.bam
+        # subset reads for aligned length > 16 & < 28bp & any reads with gaps (XO/XG tags)
+        {params.samtools_path} view -h mirbase_alignment/{params.sample}.aln.sam | \
+            awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ((length($10) > 16 && length($10) <= 28) && ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/)) {{print $0}}' | \
+            samtools view -Sb - > mirbase_alignment/{params.sample}.bam
+        # filter for any reads with MAPQ <=1
+        {params.samtools_path} view -h -q 2 mirbase_alignment/{params.sample}.bam > mirbase_alignment/{params.sample}.sub.bam
+        # filter for any reads with > 2 mismatches 
+        {params.samtools_path} view -h mirbase_alignment/{params.sample}.sub.bam | \
+            awk 'BEGIN {{OFS="\t"}} /^@/ || ($0 ~ /NM:i:[0-2]($|\t)/)' | \
+            samtools view -b > mirbase_alignment/{params.sample}.sub2.bam
         
+        # sort and index BAM file 
+        {params.samtools_path} sort -@ 4 mirbase_alignment/{params.sample}.sub2.bam > mirbase_alignment/{params.sample}.srt.bam
+        {params.samtools_path} index mirbase_alignment/{params.sample}.srt.bam
+
+        # remove intermediate bam files 
+        rm -rf mirbase_alignment/{params.sample}.bam
+        rm -rf mirbase_alignment/{params.sample}.sub.bam
+        rm -rf mirbase_alignment/{params.sample}.sub2.bam 
 """
 
 
