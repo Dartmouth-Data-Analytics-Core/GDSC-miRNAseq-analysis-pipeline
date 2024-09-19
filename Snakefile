@@ -211,8 +211,11 @@ rule genome_dedup:
 
     shell: """
     {params.umitools_path} dedup --method=unique -I genome_alignment/{params.sample}.srt.bam -S genome_alignment/{params.sample}.srt.dedup.bam
-    {params.samtools_path} index genome_alignment/{params.sample}.srt.dedup.bam
-        
+    # filter by length and gap presence 
+    {params.samtools_path} view -h genome_alignment/{params.sample}.srt.dedup.bam | \
+        awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ((length($10) > 16 && length($10) <= 28) && ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/)) {{print $0}}' | \
+        {params.samtools_path} view -Sb -> genome_alignment/{params.sample}.srt.dedup.filt.bam
+    {params.samtools_path} index genome_alignment/{params.sample}.srt.dedup.filt.bam
 """
 
 
@@ -222,7 +225,8 @@ rule genome_counts:
 
     output: 
         "genome_counts/featurecounts.readcounts.ann.tsv",
-
+        "genome_counts/featurecounts.readcounts_tpm.tsv",
+        "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
 
     params:
         featurecounts = config['featurecounts_path'],
@@ -289,7 +293,7 @@ rule pca_plots:
         python {params.pca_plot_script} \
         mirbase_counts/mirbase.readcounts.tsv \
         plots \
-        --genes_considered {params.num_genes} \
+        --genes_considered {params.num_genes} 
 #        --color_file sample_ref/sample_colors_hex.tsv
     """
 
