@@ -276,7 +276,7 @@ rule genome_counts:
     resources: cpus="10", maxtime="8:00:00", mem_mb="100gb",
 
     shell: """
-        {params.featurecounts} -T 32 {params.pair_flag} -s {params.strand}  -a {params.gtf} -o genome_counts/featurecounts.readcounts.raw.tsv {input}
+        {params.featurecounts} -T 32 -Q 10 {params.pair_flag} -s {params.strand}  -a {params.gtf} -o genome_counts/featurecounts.readcounts.raw.tsv {input}
         sed s/"genome_alignment\/"//g genome_counts/featurecounts.readcounts.raw.tsv| sed s/".srt.bam"//g| tail -n +2 > genome_counts/featurecounts.readcounts.tsv
         python scripts/readcnt_to_rpkmtpm.py genome_counts/featurecounts.readcounts.tsv {params.layout}
         python {params.fc_ann_script} {params.gtf} genome_counts/featurecounts.readcounts.tsv > genome_counts/featurecounts.readcounts.ann.tsv
