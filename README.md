@@ -38,7 +38,7 @@ conda activate /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/snakemake/
 ## More Command Line Examples
 Submit the pipeline to a single machine, allowing usage of 40 cores:
 ```shell
-snakemake --use-conda -s Snakefile -j 40
+snakemake --use-conda -s Snakefile -j 40 --use-conda --conda-frontend conda --conda-prefix /dartfs/rc/nosnapshots/G/GMBSR_refs/envs/miRNAseq
 ```
 
 **Contact & questions:** 
