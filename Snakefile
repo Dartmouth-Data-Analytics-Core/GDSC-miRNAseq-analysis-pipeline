@@ -92,10 +92,55 @@ rule umitools:
             -L umi_reads/{params.sample}.umi.log.txt
 """
 
+# generates spike-in counts
+rule spikein_bbduk_core:
+    input:
+        "umi_reads/{sample}.umi.fastq.gz"
+    output:
+        "spikein_alignment/{sample}.core.stats"
+    conda:
+        "envs/bbmap.yml"
+    threads: 8
+    shell:
+        """
+        bbduk.sh in={input} outm=/dev/null ref=libs/spikeins/spikeins_core.fa \
+            stats={output} k=13 maskmiddle=f rcomp=f hdist=0 edist=0
+        """
+
+rule spikein_alignment:
+    input:
+        "umi_reads/{sample}.umi.fastq.gz"
+    output:
+        spikein_bam = "spikein_alignment/{sample}.srt.bam",
+        unmapped_fastq = "spikein_alignment/{sample}.unmapped.fastq"
+    params:
+        sample = lambda wildcards: wildcards.sample,
+        bowtie_path = configfile["bowtie_path"],
+        bowtie_spikein_index = configfile["bowtie_spikein_index"],
+        samtools_path = configfile["samtools_path"]
+    threads: 12
+   shell: """
+        {params.bowtie_path} \
+            -x {params.bowtie_spikein_index} \
+            -U {input} -p 12 --no-unal \
+            --norc -k 1 --very-sensitive --un {output.unmapped_fastq \
+            -S spikein_alignment/{params.sample}.aln.sam 2>spikein_alignment/{params.sample}_spikein.log.txt
+        # sort and index
+        {params.samtools_path} view -Sb spikein_alignment/{params.sample}.aln.sam | \
+            {params.samtools_path} sort -@ 4 - > spikein_alignment/{params.sample}.srt.bam
+        {params.samtools_path} index spikein_alignment/{params.sample}.srt.bam
+        rm spikein_alignment/{params.sample}.aln.sam
+    """
+
+
+def get_input_file(wildcards):
+    if configfile["use_spikeins"]:
+        return f"spikein_alignment/{wildcards.sample}.unmapped.fastq"
+    return f"umi_reads/{wildcards.sample}.umi.fastq.gz"
 
 rule mirbase_alignment:
-    input: 
-        "umi_reads/{sample}.umi.fastq.gz",
+    input:
+        get_input_file,
     output:
         "mirbase_alignment/{sample}.srt.bam",
         "mirbase_alignment/{sample}.unalign.fastq",

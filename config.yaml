@@ -6,6 +6,10 @@ sample_tsv: "sample_fastq_list.txt"
 # sequencing config
 layout: "single"
 
+# spike-in info
+use_spikeins: true
+spikeins_full_fasta: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/250805_smRNA/spike-in_pipeline/GDSC-miRNAseq-analysis-pipeline/refs/spikeins"
+
 #############################################
 # Software Paths for use with "--use-conda" #
 ############################################# 
