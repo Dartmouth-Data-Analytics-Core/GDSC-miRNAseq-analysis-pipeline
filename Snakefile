@@ -99,7 +99,7 @@ rule spikein_bbduk_core:
     output:
         "spikein_alignment/{sample}.core.stats"
     conda:
-        "envs/bbmap.yml"
+        "envs_config/bbmap.yaml"
     threads: 8
     shell:
         """
@@ -243,7 +243,21 @@ rule mirbase_count:
 
     # run TPM normalization 
     python scripts/mirbase-readcnt_to_tpm.py mirbase_counts/mirbase.readcounts.tsv
-"""    
+"""
+
+rule add_spikeins_to_counts:
+    input:
+        mirna = "mirbase_counts/mirbase.readcounts.tsv",
+        spikeins = "spikein_alignment/{sample}.core.stats"
+    output:
+        "mirbase_counts/mirbase.readcounts.with_spikeins.tsv"
+    shell: 
+        """
+        Rscript scripts/add_spikeins_to_counts.R \
+            --mirna {input.mirna} \
+            --spike {input.spikeins} \
+            --out {output}
+        """
 
 rule genome_alignment:
     input: 
