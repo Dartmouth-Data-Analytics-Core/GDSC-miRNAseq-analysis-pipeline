@@ -5,6 +5,7 @@ import pandas as pd
 
 # set config file
 configfile: "config.yaml"
+USE_SPIKEINS = config.get("use_spikeins", False)
 
 # read in sample data
 samples_df = pd.read_table(config["sample_tsv"]).set_index("sample_id", drop=False)
@@ -13,6 +14,9 @@ sample_list = list(samples_df['sample_id'])
 #####~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # define rules
 #####~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+if USE_SPIKEINS:
+    include: "rules/spikein.smk"
 
 rule all:
     input:
@@ -30,9 +34,10 @@ rule all:
         "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
         "mirbase_counts/mirbase.readcounts.tsv",
         "mirbase_counts/mirbase.readcounts_tpm.tsv",
-        "plots/PCA_Variance_Bar_Plot.png",
+        "spikein_counts/spikein.readcounts.tsv" if USE_SPIKEINS else [],
         expand("mirbase_alignment/{sample}.srt.dedup.bam.idxstats", sample=sample_list),
-        expand("mirbase_alignment/{sample}.srt.dedup.bam.flagstat", sample=sample_list)
+        expand("mirbase_alignment/{sample}.srt.dedup.bam.flagstat", sample=sample_list),
+        expand("spikein_alignment/{sample}.unmapped.bowtie2.fastq.gz", sample=sample_list)
                 
     conda:
         "env_config/multiqc.yaml",
@@ -45,7 +50,7 @@ rule all:
         "multiqc_report.html"
 
     shell: """
-        {params.multiqc}  genome_alignment  mirbase_alignment  genome_counts mirbase_counts  umi_reads
+        {params.multiqc}  trimming genome_alignment  mirbase_alignment  genome_counts mirbase_counts  umi_reads
 """
 
 
@@ -71,9 +76,16 @@ rule trimming:
             --trim-n > trimming/{params.sample}.cutadapt.report
     """
 
+
+def get_input_file(wildcards):
+    if USE_SPIKEINS:
+        return f"spikein_alignment/{wildcards.sample}.unmapped.bowtie2.fastq.gz"
+    return f"trimming/{wildcards.sample}.R1.trim.fastq.gz"
+
+
 rule umitools:
     input: 
-        "trimming/{sample}.R1.trim.fastq.gz",
+        get_input_file,
     output: 
         "umi_reads/{sample}.umi.fastq.gz",
         "umi_reads/{sample}.umi.log.txt",
@@ -90,57 +102,13 @@ rule umitools:
             -I {input} \
             -S umi_reads/{params.sample}.umi.fastq.gz \
             -L umi_reads/{params.sample}.umi.log.txt
-"""
-
-# generates spike-in counts
-rule spikein_bbduk_core:
-    input:
-        "umi_reads/{sample}.umi.fastq.gz"
-    output:
-        "spikein_alignment/{sample}.core.stats"
-    conda:
-        "envs_config/bbmap.yaml"
-    threads: 8
-    shell:
-        """
-        bbduk.sh in={input} outm=/dev/null ref=libs/spikeins/spikeins_core.fa \
-            stats={output} k=13 maskmiddle=f rcomp=f hdist=0 edist=0
-        """
-
-rule spikein_alignment:
-    input:
-        "umi_reads/{sample}.umi.fastq.gz"
-    output:
-        spikein_bam = "spikein_alignment/{sample}.srt.bam",
-        unmapped_fastq = "spikein_alignment/{sample}.unmapped.fastq"
-    params:
-        sample = lambda wildcards: wildcards.sample,
-        bowtie_path = configfile["bowtie_path"],
-        bowtie_spikein_index = configfile["bowtie_spikein_index"],
-        samtools_path = configfile["samtools_path"]
-    threads: 12
-   shell: """
-        {params.bowtie_path} \
-            -x {params.bowtie_spikein_index} \
-            -U {input} -p 12 --no-unal \
-            --norc -k 1 --very-sensitive --un {output.unmapped_fastq \
-            -S spikein_alignment/{params.sample}.aln.sam 2>spikein_alignment/{params.sample}_spikein.log.txt
-        # sort and index
-        {params.samtools_path} view -Sb spikein_alignment/{params.sample}.aln.sam | \
-            {params.samtools_path} sort -@ 4 - > spikein_alignment/{params.sample}.srt.bam
-        {params.samtools_path} index spikein_alignment/{params.sample}.srt.bam
-        rm spikein_alignment/{params.sample}.aln.sam
-    """
+"""    
 
 
-def get_input_file(wildcards):
-    if configfile["use_spikeins"]:
-        return f"spikein_alignment/{wildcards.sample}.unmapped.fastq"
-    return f"umi_reads/{wildcards.sample}.umi.fastq.gz"
 
 rule mirbase_alignment:
     input:
-        get_input_file,
+        "umi_reads/{sample}.umi.fastq.gz"
     output:
         "mirbase_alignment/{sample}.srt.bam",
         "mirbase_alignment/{sample}.unalign.fastq",
@@ -153,9 +121,15 @@ rule mirbase_alignment:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
+         if [[ "{input}" == *.gz ]]; then
+            gunzip -c {input} > /tmp/{wildcards.sample}.fastq
+            input_file=/tmp/{wildcards.sample}.fastq
+        else
+            input_file={input}
+        fi
         {params.bowtie_path} \
             -x {params.bowtie_index} \
-            -U {input} -p 12 \
+            -U $input_file -p 12 \
             --norc \
             -D 20 -R 3 -N 1 -L 12 -i S,1,0.50 \
             --un mirbase_alignment/{params.sample}.unalign.fastq \
@@ -245,19 +219,6 @@ rule mirbase_count:
     python scripts/mirbase-readcnt_to_tpm.py mirbase_counts/mirbase.readcounts.tsv
 """
 
-rule add_spikeins_to_counts:
-    input:
-        mirna = "mirbase_counts/mirbase.readcounts.tsv",
-        spikeins = "spikein_alignment/{sample}.core.stats"
-    output:
-        "mirbase_counts/mirbase.readcounts.with_spikeins.tsv"
-    shell: 
-        """
-        Rscript scripts/add_spikeins_to_counts.R \
-            --mirna {input.mirna} \
-            --spike {input.spikeins} \
-            --out {output}
-        """
 
 rule genome_alignment:
     input: 
@@ -359,9 +320,9 @@ rule alignment_metrics_counts:
 
     shell: """
         mkdir -p metrics
-        python scripts/qc_metrics.py umi_reads mirbase_alignment genome_alignment > metrics/mirna_genome_alignment_metrics.tsv
-        python scripts/qc_metrics_xlsx.py metrics/mirna_genome_alignment_metrics.tsv metrics/mirna_genome_alignment_metrics.xlsx
+        python scripts/qc_metrics.py umi_reads mirbase_alignment genome_alignment
 """
+
 
 rule pca_plots:
     input: "mirbase_counts/mirbase.readcounts.tsv",
