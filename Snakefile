@@ -50,7 +50,7 @@ rule all:
         "multiqc_report.html"
 
     shell: """
-        {params.multiqc}  trimming genome_alignment  mirbase_alignment  genome_counts mirbase_counts  umi_reads
+        {params.multiqc}  -c multiqc_config.yaml genome_alignment  mirbase_alignment  genome_counts mirbase_counts  umi_reads
 """
 
 
