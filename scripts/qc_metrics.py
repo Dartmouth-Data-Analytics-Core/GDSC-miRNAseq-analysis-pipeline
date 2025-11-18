@@ -114,14 +114,14 @@ metrics = pd.DataFrame(index=[
     "% of reads mapping to mirbase",
     "# of reads multimapping mirbase",
     "% of reads multimapping mirbase",
+    "# of reads mapping to miRBase after length/gap/MAPQ/mismatch filters",
+    "% of reads mapping to miRBase after length/gap/MAPQ/mismatch filters",
     "# of reads mapped genome",
     "% of reads mapped genome",
     "# of reads multimapping genome",
     "% of reads multimapping genome",
     "# of reads after deduplication",
     "% of reads after deduplication",
-    "# of reads after gap and length filter",
-    "% of reads after gap and length filter",
     "# of reads assigned in featurecounts",
     "% of reads assigned in featurecounts"
 ], columns=sample_list)
@@ -157,7 +157,10 @@ metrics.loc["% of reads multimapping mirbase"] = (
     metrics.loc["# of reads multimapping mirbase"].astype(float) 
     / metrics.loc["# of UMI-containing reads"].astype(float) * 100).round(2)
 
-
+filtered_bams = sorted(glob(mir_dir+"/*.srt.bam"))
+metrics.loc["# of reads mapping to miRBase after length/gap/MAPQ/mismatch filters"] = [
+    run_samtools_count(bam, exclude_flag=4) for bam in filtered_bams
+]
 
 # ------------------------------
 # Genome counts
@@ -178,10 +181,7 @@ metrics.loc["# of reads after deduplication"] = [
     run_samtools_count(bam, exclude_flag=4) for bam in dedup_bams
 ]
 
-filtered_bams = sorted(glob(genome_dir+"/*.srt.dedup.filt.bam"))
-metrics.loc["# of reads after gap and length filter"] = [
-    run_samtools_count(bam, exclude_flag=4) for bam in filtered_bams
-]
+
 
 
 # ------------------------------
@@ -215,8 +215,8 @@ metrics.loc["% of reads after deduplication"] =  (
     / metrics.loc["# of UMI-containing reads"].astype(float) * 100
 ).round(2)
 # % of reads after filter
-metrics.loc["% of reads after gap and length filter"] =  (
-    metrics.loc["# of reads after gap and length filter"].astype(float)
+metrics.loc["% of reads mapping to miRBase after length/gap/MAPQ/mismatch filters"] =  (
+    metrics.loc["# of reads mapping to miRBase after length/gap/MAPQ/mismatch filters"].astype(float)
     / metrics.loc["# of UMI-containing reads"].astype(float) * 100
 ).round(2)
 

@@ -11,6 +11,14 @@ extra_fn_clean_exts:
   - ".hisat"
   - ".5k"
 
+use_filename_as_sample_name:
+  - bowtie2
+
+sp:
+  bowtie2:
+    - fn: "*_genome.log.txt"
+    - fn: "*_mirbase.log.txt"
+
 module_order:
   - "fastqc"
   - "star"
