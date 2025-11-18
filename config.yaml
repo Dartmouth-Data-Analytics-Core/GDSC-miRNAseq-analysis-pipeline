@@ -14,16 +14,11 @@ samtools_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/samtools/
 bowtie_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/bowtie2/bowtie2-2.4.4-linux-x86_64/bowtie2"
 multiqc_path: "multiqc"
 python_mirna_venv: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/mirna-python-venv/bin/python3"
-#featurecounts_path: "featureCounts"
 featurecounts_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/featurecounts/subread-2.0.1-Linux-x86_64/bin/featureCounts"
 
 ############################################# 
 # Reference file Paths #####################
 ############################################# 
-##### MOUSE #####
-#bowtie_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/snakemake/mirna-seq/DAC-RNAseq-pipeline/refs/mouse_mature"
-#bowtie_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/mouse/mm10-bowtie2-index/mm10"
-#annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/mouse/ensembl-annotations/Mus_musculus.GRCm38.97.gtf"
 
 ##### HUMAN ####
 bowtie_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/snakemake/mirna-seq/DAC-RNAseq-pipeline/refs/human_mature_mirbase-padded_U_to_T/human_mature_mirbas$
