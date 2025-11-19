@@ -29,8 +29,7 @@ rule spikein_counts:
     input:
         expand("spikein_alignment/{sample}.stats", sample=sample_list)
     output:
-        "spikein_counts/spikein.readcounts.tsv",
-        "spikein_counts/spikein.readcounts_tpm.tsv"
+        "spikein_counts/spikein.readcounts.tsv"
     params:
         samples = " ".join(sample_list)
     shell: """

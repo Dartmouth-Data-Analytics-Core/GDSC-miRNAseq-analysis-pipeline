@@ -34,10 +34,10 @@ rule all:
         "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
         "mirbase_counts/mirbase.readcounts.tsv",
         "mirbase_counts/mirbase.readcounts_tpm.tsv",
+        expand("spikein_alignment/{sample}.unmapped.bowtie2.fastq.gz", sample=sample_list) if USE_SPIKEINS else [],
         "spikein_counts/spikein.readcounts.tsv" if USE_SPIKEINS else [],
         expand("mirbase_alignment/{sample}.srt.dedup.bam.idxstats", sample=sample_list),
-        expand("mirbase_alignment/{sample}.srt.dedup.bam.flagstat", sample=sample_list),
-        expand("spikein_alignment/{sample}.unmapped.bowtie2.fastq.gz", sample=sample_list)
+        expand("mirbase_alignment/{sample}.srt.dedup.bam.flagstat", sample=sample_list)
                 
     conda:
         "env_config/multiqc.yaml",
@@ -282,6 +282,7 @@ rule genome_counts:
         "genome_counts/featurecounts.readcounts.ann.tsv",
         "genome_counts/featurecounts.readcounts_tpm.tsv",
         "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
+        "genome_counts/featurecounts.readcounts.raw.tsv.summary"
 
     params:
         featurecounts = config['featurecounts_path'],
@@ -305,7 +306,10 @@ rule genome_counts:
 
 rule alignment_metrics_counts:
     input:  
-        expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.srt.dedup.bam", sample=sample_list),
+        expand("mirbase_alignment/{sample}.srt.bam", sample=sample_list),
+        expand("mirbase_alignment/{sample}.srt.dedup.bam", sample=sample_list),
+        "genome_counts/featurecounts.readcounts.raw.tsv.summary"
 
     output: 
         "metrics/mirna_genome_alignment_metrics.tsv",
