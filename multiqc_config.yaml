@@ -2,14 +2,13 @@ report_header_info:
   - Contact E-mail:  DataAnalyticsCore@groups.dartmouth.edu
   - Application Type: "miRNA-seq"
 
-extra_fn_clean_exts:
-  - ".srt"
-  - ".combined"
-  - ".aln.err"
-  - ".1M"
-  - ".mkdup"
-  - ".hisat"
-  - ".5k"
+
+extra_fn_clean_trim:
+  - "_genome.log.txt"
+  - "_mirbase.log.txt"
+  - ".srt.dedup.filt.bam"
+  - ".umi.fastq.gz"
+  - ".umi"
 
 use_filename_as_sample_name:
   - bowtie2

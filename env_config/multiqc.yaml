@@ -6,6 +6,6 @@ channels:
 dependencies:
   - nomkl
   - python=3.10
-  - multiqc>=1.18
+  - multiqc=1.32
 variables:
   PYTHONIOENCODING: utf-8
