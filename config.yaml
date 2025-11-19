@@ -30,7 +30,7 @@ featurecounts_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/feat
 #annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/mouse/ensembl-annotations/Mus_musculus.GRCm38.97.gtf"
 
 ##### HUMAN ####
-bowtie_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/snakemake/mirna-seq/DAC-RNAseq-pipeline/refs/human_mature_mirbase-padded_U_to_T/human_mature_mirbas$
+bowtie_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/mirbase-human-hg38-padded/mirbase-human-hg38-padded"
 bowtie_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/hg38-bowtie2-index/hg38-bowtie2-index"
 annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/ensembl-annotations/Homo_sapiens.GRCh38.97.gtf"
 
