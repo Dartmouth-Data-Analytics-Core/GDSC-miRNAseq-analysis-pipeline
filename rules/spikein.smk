@@ -5,7 +5,7 @@ rule spikein_bbduk:
         stats = "spikein_alignment/{sample}.stats",
         unmapped = "spikein_alignment/{sample}.unmapped.fastq.gz"
     params:
-        spikein_ref = config["spikein_reference"]  
+        spikein_ref = config["spikein_reference_core"]  
     threads: 8
     conda:
         "../env_config/bbmap.yaml"
