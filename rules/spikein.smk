@@ -40,8 +40,6 @@ rule spikein_counts:
             --samples "{params.samples}" \
             --output {output[0]}
         
-        # TPM normalization
-        python scripts/mirbase-readcnt_to_tpm.py {output[0]}
     """
 
 
