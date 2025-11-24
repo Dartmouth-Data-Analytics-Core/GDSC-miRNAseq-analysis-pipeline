@@ -263,7 +263,7 @@ for (sample in unique(mirna_long$sample_id)) {
   spikes_this <- spikes_this %>%
     mutate(concentration = predict(fm, newdata = data.frame(counts = counts)))
   
-  # PLOT 1
+  # ------------------- PLOT 1: Spike-in calibration -------------------
   p1 <- ggplot(spikes_this, aes(counts, concentration)) +
     geom_point(size = 3, color = "darkblue") +
     geom_line(aes(y = concentration), color = "blue", linetype = "dashed", linewidth = 0.5) +
@@ -278,7 +278,7 @@ for (sample in unique(mirna_long$sample_id)) {
     ) +
     theme_bw()
   
-  # PLOT 2
+  # ------------------- PLOT 2: miRNA read distribution ----------------
   mirna_this <- mirna_long %>%
     filter(sample_id == sample) %>%
     mutate(
@@ -287,13 +287,13 @@ for (sample in unique(mirna_long$sample_id)) {
     )
   
   p2 <- ggplot(mirna_this, aes(x = sample_id, y = reads, color = range)) +
-    # Adicionar retângulo cinza para a região "in range"
+    # Shaded area for spike-in detection range
     annotate("rect",
              xmin = -Inf, xmax = Inf,
              ymin = spikein_lower, ymax = spikein_upper,
              alpha = 0.15, fill = "gray80"
     )  +
-    # Pontos dos miRNAs
+    
     geom_point(alpha = 0.6, size = 2.5, position = position_jitter(width = 0.15))  +
     scale_y_log10() +
     scale_color_manual(
@@ -313,7 +313,7 @@ for (sample in unique(mirna_long$sample_id)) {
       panel.grid.major = element_line(color = "gray90", linewidth = 0.3),
       panel.grid.minor = element_line(color = "gray95", linewidth = 0.2)
     )
-  
+  # Save side-by-side plots
   g <- arrangeGrob(p1, p2, ncol = 2)
   ggsave(
     filename = paste0("spikein_metrics/qc_plots/", sample, "_spikein_qc.pdf"),
