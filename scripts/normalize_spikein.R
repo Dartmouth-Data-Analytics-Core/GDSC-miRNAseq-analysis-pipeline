@@ -2,7 +2,10 @@
 # Spike-in QC and miRNA normalization pipeline
 # -------------------------------------------------------------
 # This script performs spike-in–based calibration and estimates
-# miRNA concentrations from read counts.
+# miRNA concentrations from read counts. This script was adapted 
+# from a version original distributed by TAmirna at:
+# https://github.com/tamirna/mind-spike-in-concentrations
+
 #
 # UNIT NOTE:
 # All concentrations in this pipeline are expressed as molecules/µL.
