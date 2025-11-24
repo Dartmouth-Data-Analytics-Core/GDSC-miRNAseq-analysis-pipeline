@@ -5,23 +5,17 @@
 # miRNA concentrations from read counts.
 #
 # UNIT NOTE:
-# All concentrations in this pipeline are expressed as amol/µL.
-# The calibration model predicts concentration in amol/µL.
+# All concentrations in this pipeline are expressed as molecules/µL.
+# The calibration model predicts concentration in molecules/µL.
 #
-# If users require molecules/µL, values can be converted by
-# multiplying by:
-#     6.02214e23 * 1e-18  ≈ 602,214
-#
-# This conversion is optional and does not affect QC metrics
-# or model performance.
 # -------------------------------------------------------------
 # This script:
 # 1. Loads spike-in and miRNA count tables
-# 2. Annotates spike-in concentrations (amol/µL)
-# 3. Fits per-sample calibration models (amol/µL ~ counts)
+# 2. Annotates spike-in concentrations (molecules/µL)
+# 3. Fits per-sample calibration models (molecules/µL ~ counts)
 # 4. Computes QC metrics (R², detection limits, spike-ins detected)
 # 5. Identifies miRNAs within the calibrated dynamic range
-# 6. Normalizes miRNA counts to amol/µL using the spike-in model
+# 6. Normalizes miRNA counts to molecules/µL using the spike-in model
 # 7. Generates per-sample QC plots
 # 8. Outputs TSV files with QC metrics and normalized concentrations
 # -------------------------------------------------------------
@@ -58,7 +52,7 @@ finalVolume <- 5     # Final sample volume (µL)
 
 # Adjust final spike-in concentration after dilution
 spikes_info <- spikes_info %>%
-  mutate(amol_concentration = amol_concentration * spikeInsVolume / finalVolume)
+  mutate(molecules_concentration = amol_concentration * spikeInsVolume * amol / finalVolume)
 
 
 # -------------------------------------------------------------
@@ -78,7 +72,7 @@ spikes_detected <- spikes_with_conc %>%
 # -------------------------------------------------------------
 # For each sample:
 # - Check number of missing spike-ins
-# - Fit linear model amol_concentration ~ 0 + counts
+# - Fit linear model molecules_concentration ~ 0 + counts
 # - Compute R², lower/upper detection limits, slope
 spikeins_stats <- spikes_with_conc %>%
   group_by(samples) %>%
@@ -103,7 +97,7 @@ spikeins_stats <- spikes_with_conc %>%
     } else {
       # Fit model using detected spike-ins only
       df2 <- df %>% filter(counts > 0)
-      fit <- lm(amol_concentration ~ 0 + counts, data = df2)
+      fit <- lm(molecules_concentration ~ 0 + counts, data = df2)
       # Prediction intervals for spike-ins
       pred_int <- suppressWarnings(predict(fit, interval = "prediction")) %>% as_tibble()
       df_with_pred <- df2 %>% bind_cols(pred_int)
@@ -136,7 +130,7 @@ per_sample_models <- spikes_detected %>%
   group_split(samples) %>%
   map_df(~ {
     df <- .x
-    fm <- lm(amol_concentration ~ 0 + counts, data = df)
+    fm <- lm(molecules_concentration ~ 0 + counts, data = df)
     tibble(
       sample_id = unique(df$samples),
       model = list(fm)
@@ -184,7 +178,7 @@ spikeins_stats <- spikeins_stats %>%
 # -------------------------------------------------------------
 LOD_by_sample <- spikes_detected %>%
   group_by(samples) %>%
-  summarise(LOD = min(amol_concentration), .groups = "drop") %>%
+  summarise(LOD = min(molecules_concentration), .groups = "drop") %>%
   rename(sample_id = samples)
 
 # -------------------------------------------------------------
@@ -194,7 +188,7 @@ spikeins_stats %>%
   left_join(LOD_by_sample, by = "sample_id") %>%
   rename(
     "Scale Factor/ Slope" = slope,
-    "Limit of Detection amol/uL (microliter)" = LOD,
+    "Limit of Detection molecules/uL (microliter)" = LOD,
     "Percent in range %" = percent_in_range,
     "Number of mirnas in Range" = mirnas_in_range,
     "Number of spike-ins detected" = spikeins_detected,
@@ -205,7 +199,7 @@ spikeins_stats %>%
   write_tsv("spikein_metrics/spikein_detection_metrics.tsv")
 
 # -------------------------------------------------------------
-# Normalize miRNA counts into amol/microliter using spike-in linear model
+# Normalize miRNA counts into molecules/microliter using spike-in linear model
 # -------------------------------------------------------------
 mirna_normalized <- mirna_long %>%
   left_join(per_sample_models, by = "sample_id") %>%
@@ -220,17 +214,17 @@ mirna_normalized <- mirna_long %>%
   ) %>%
   unnest(pred_data) %>%
   mutate(
-    amol_concentration = round(fit, 2),
+    molecules_concentration = round(fit, 2),
     interval = round(fit - lwr, 2)
   ) %>%
   ungroup() %>%
-  select(mirbase_ID, Length, sample_id, reads, amol_concentration)
+  select(mirbase_ID, Length, sample_id, reads, molecules_concentration)
 
 # Export normalized miRNA table (wide format)
 mirna_normalized %>%
   pivot_wider(
     names_from = sample_id,
-    values_from = amol_concentration,
+    values_from = molecules_concentration,
     id_cols = c(mirbase_ID, Length),
     values_fill = 0
   ) %>%
@@ -274,7 +268,7 @@ for (sample in unique(mirna_long$sample_id)) {
       title = "Spike-in Calibration",
       subtitle = paste0("R² = ", round(rsq_value, 4)),
       x = "Reads (log10)",
-      y = "Concentration (log10 amol/µL)"
+      y = "Concentration (log10 molecules/µL)"
     ) +
     theme_bw()
   
