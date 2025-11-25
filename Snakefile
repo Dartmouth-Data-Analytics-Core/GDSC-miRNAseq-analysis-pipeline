@@ -6,6 +6,7 @@ import pandas as pd
 # set config file
 configfile: "config.yaml"
 USE_SPIKEINS = config.get("use_spikeins", False)
+USE_UMITOOLS = config.get("use_umitools", False)
 
 # read in sample data
 samples_df = pd.read_table(config["sample_tsv"]).set_index("sample_id", drop=False)
@@ -17,6 +18,8 @@ sample_list = list(samples_df['sample_id'])
 
 if USE_SPIKEINS:
     include: "additional_rules/spike_ins/spikein.smk"
+if USE_UMITOOLS:
+    include: "additional_rules/umitools/umi_extract.smk"
 
 rule all:
     input:
@@ -54,7 +57,6 @@ rule all:
         {params.multiqc}  -c multiqc_config.yaml genome_alignment  mirbase_alignment  genome_counts mirbase_counts  umi_reads
 """
 
-
 rule trimming:
     output: 
         "trimming/{sample}.R1.trim.fastq.gz",
@@ -77,39 +79,21 @@ rule trimming:
             --trim-n > trimming/{params.sample}.cutadapt.report
     """
 
-
-def get_input_file(wildcards):
+# define function selecting input FASTQ file for UMItools 
+def get_umitools_input(wildcards):
     if USE_SPIKEINS:
         return f"spikein_alignment/{wildcards.sample}.unmapped.bowtie.fastq.gz"
     return f"trimming/{wildcards.sample}.R1.trim.fastq.gz"
 
-
-rule umitools:
-    input: 
-        get_input_file,
-    output: 
-        "umi_reads/{sample}.umi.fastq.gz",
-        "umi_reads/{sample}.umi.log.txt",
-    params:
-        sample = lambda wildcards:  wildcards.sample,
-        umitools_path = config["umitools_path"],
-        fastq_file_1 = lambda wildcards: samples_df.loc[wildcards.sample, "fastq_1"],
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
-    shell: """
-        {params.umitools_path} extract \
-            --extract-method=regex \
-            --bc-pattern='.+(?P<discard_1>AACTGTAGGCACCATCAAT){{s<=2}}(?P<umi_1>.{{12}})(?P<discard_2>.+)' \
-            -I {input} \
-            -S umi_reads/{params.sample}.umi.fastq.gz \
-            -L umi_reads/{params.sample}.umi.log.txt
-"""    
-
-
+# define function selecting input FASTQ file for alignment
+def get_alignment_input(wildcards):
+    if USE_UMITOOLS:
+        return f"umi_reads/{sample}.umi.fastq.gz"
+    return f"trimming/{wildcards.sample}.R1.trim.fastq.gz"
 
 rule mirbase_alignment:
     input:
-        "umi_reads/{sample}.umi.fastq.gz"
+        get_alignment_input
     output:
         "mirbase_alignment/{sample}.srt.bam",
         "mirbase_alignment/{sample}.unalign.fastq",
