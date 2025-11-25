@@ -122,15 +122,9 @@ rule mirbase_alignment:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-         if [[ "{input}" == *.gz ]]; then
-            gunzip -c {input} > /tmp/{wildcards.sample}.fastq
-            input_file=/tmp/{wildcards.sample}.fastq
-        else
-            input_file={input}
-        fi
-        {params.bowtie_path} \
+          {params.bowtie_path} \
             -x {params.bowtie_index} \
-            -U $input_file -p 12 \
+            -U {input} -p 12 \
             --norc \
             -D 20 -R 3 -N 1 -L 12 -i S,1,0.50 \
             --un mirbase_alignment/{params.sample}.unalign.fastq \
