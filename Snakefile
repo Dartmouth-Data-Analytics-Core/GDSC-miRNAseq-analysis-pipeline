@@ -37,7 +37,8 @@ rule all:
         expand("spikein_alignment/{sample}.unmapped.bowtie2.fastq.gz", sample=sample_list) if USE_SPIKEINS else [],
         "spikein_counts/spikein.readcounts.tsv" if USE_SPIKEINS else [],
         expand("mirbase_alignment/{sample}.srt.dedup.bam.idxstats", sample=sample_list),
-        expand("mirbase_alignment/{sample}.srt.dedup.bam.flagstat", sample=sample_list)
+        expand("mirbase_alignment/{sample}.srt.dedup.bam.flagstat", sample=sample_list),
+        "plots/PCA_1_vs_2.png"
                 
     conda:
         "env_config/multiqc.yaml",
