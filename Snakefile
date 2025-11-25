@@ -16,7 +16,7 @@ sample_list = list(samples_df['sample_id'])
 #####~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if USE_SPIKEINS:
-    include: "rules/spikein.smk"
+    include: "additional_rules/spike_ins/spikein.smk"
 
 rule all:
     input:
@@ -34,7 +34,7 @@ rule all:
         "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
         "mirbase_counts/mirbase.readcounts.tsv",
         "mirbase_counts/mirbase.readcounts_tpm.tsv",
-        expand("spikein_alignment/{sample}.unmapped.bowtie2.fastq.gz", sample=sample_list) if USE_SPIKEINS else [],
+        expand("spikein_alignment/{sample}.unmapped.bowtie.fastq.gz", sample=sample_list) if USE_SPIKEINS else [],
         "spikein_counts/spikein.readcounts.tsv" if USE_SPIKEINS else [],
         expand("mirbase_alignment/{sample}.srt.dedup.bam.idxstats", sample=sample_list),
         expand("mirbase_alignment/{sample}.srt.dedup.bam.flagstat", sample=sample_list),
@@ -80,7 +80,7 @@ rule trimming:
 
 def get_input_file(wildcards):
     if USE_SPIKEINS:
-        return f"spikein_alignment/{wildcards.sample}.unmapped.bowtie2.fastq.gz"
+        return f"spikein_alignment/{wildcards.sample}.unmapped.bowtie.fastq.gz"
     return f"trimming/{wildcards.sample}.R1.trim.fastq.gz"
 
 
