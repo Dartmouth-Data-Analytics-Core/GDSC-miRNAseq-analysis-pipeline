@@ -63,23 +63,11 @@ rule spikein_bowtie_full:
             2> spikein_alignment/{wildcards.sample}.bowtie2.log
     """
 
-rule add_spikeins_to_counts:
-    input:
-        mirna = "mirbase_counts/mirbase.readcounts.tsv",
-        spikeins = expand("spikein_alignment/{sample}.core.stats", sample=sample_list)
-    output:
-        "mirbase_counts/mirbase.readcounts.with_spikeins.tsv"
-    shell: 
-        """
-        Rscript scripts/add_spikeins_to_counts.R \
-            --mirna {input.mirna} \
-            --spike {input.spikeins} \
-            --out {output}
-        """
+
 
 rule normalize_data_spikein:
     input:
-        spikein = "mirbase_counts/mirbase.readcounts.tsv",
+        spikein = "spikein_counts/spikein.readcounts.tsv",
         mirbase_counts = "mirbase_counts/mirbase.readcounts.tsv"
     output:
         "spikein_metrics/spikein_detection_metrics.tsv",

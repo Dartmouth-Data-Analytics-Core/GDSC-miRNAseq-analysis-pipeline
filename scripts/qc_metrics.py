@@ -1,4 +1,26 @@
 #!/usr/bin/env python3
+
+# Script:   qc_metrics.py
+# Purpose:  Parse UMI logs, miRBase alignment logs, and genome alignment logs
+#           to generate a combined QC metrics table.
+#
+# Usage (positional arguments):
+#   python qc_metrics.py <umi_reads_dir> <mirbase_alignment_dir> <genome_alignment_dir>
+#
+# Arguments:
+#   umi_reads_dir             Directory containing UMI extraction log files.
+#   mirbase_alignment_dir     Directory containing miRBase alignment log files.
+#   genome_alignment_dir      Directory containing genome alignment log files.
+#
+# Example:
+#   python qc_metrics.py umi_reads mirbase_alignment genome_alignment
+#
+# Output:
+#   metrics/mirna_genome_alignment_metrics.tsv
+#   metrics/mirna_genome_alignment_metrics.xlsx
+#
+# Author: Beatriz Bergamo
+
 import sys
 from glob import glob
 import pandas as pd
