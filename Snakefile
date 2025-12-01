@@ -135,34 +135,18 @@ rule mirbase_alignment:
         rm -rf mirbase_alignment/{params.sample}.sub2.bam 
 """
 
-
-rule mirbase_dedup:
-    input: 
-        "mirbase_alignment/{sample}.srt.bam",
-    output:
-        "mirbase_alignment/{sample}.srt.dedup.bam",
-    params:
-        sample = lambda wildcards:  wildcards.sample,
-        bowtie_path = config["bowtie_path"],
-        bowtie_index = config["bowtie_index"],
-        umitools_path = config["umitools_path"],
-        samtools_path = config["samtools_path"],
-
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
-    shell: """
-    {params.umitools_path} dedup --method=unique -I mirbase_alignment/{params.sample}.srt.bam -S mirbase_alignment/{params.sample}.srt.dedup.bam
-    {params.samtools_path} index mirbase_alignment/{params.sample}.srt.dedup.bam
-        
-"""
+# define function selecting input BAM file for mirbase_stats
+def get_mirbase_stats_input(wildcards):
+    if USE_UMITOOLS:
+        return f"mirbase_alignment/{wildcards.sample}.srt.dedup.bam"
+    return f"mirbase_alignment/{wildcards.sample}.srt.bam"
 
 rule mirbase_stats:
     input: 
-        "mirbase_alignment/{sample}.srt.bam",
-        "mirbase_alignment/{sample}.srt.dedup.bam",
+        get_mirbase_stats_input,
     output:
-        "mirbase_alignment/{sample}.srt.dedup.bam.idxstats",
-        "mirbase_alignment/{sample}.srt.dedup.bam.flagstat"
+        "mirbase_alignment/{sample}.srt.bam.idxstats",
+        "mirbase_alignment/{sample}.srt.bam.flagstat"
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie_path = config["bowtie_path"],
@@ -172,15 +156,15 @@ rule mirbase_stats:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-    {params.samtools_path} idxstats mirbase_alignment/{params.sample}.srt.dedup.bam > mirbase_alignment/{params.sample}.srt.dedup.bam.idxstats
-    {params.samtools_path} flagstat mirbase_alignment/{params.sample}.srt.dedup.bam > mirbase_alignment/{params.sample}.srt.dedup.bam.flagstat
-        
+    {params.samtools_path} idxstats mirbase_alignment/{params.sample}.srt.bam > mirbase_alignment/{params.sample}.srt.bam.idxstats
+    {params.samtools_path} flagstat mirbase_alignment/{params.sample}.srt.bam > mirbase_alignment/{params.sample}.srt.bam.flagstat
+
 """
 
 
 rule mirbase_count:
     input:
-        expand("mirbase_alignment/{sample}.srt.dedup.bam.idxstats", sample=sample_list),
+        expand("mirbase_alignment/{sample}.srt.bam.idxstats", sample=sample_list),
 
     output:
         "mirbase_counts/mirbase.readcounts.tsv",
@@ -191,7 +175,7 @@ rule mirbase_count:
 
     shell: """
     echo -ne mirbase_ID"\t"Length"\t" > mirbase_counts/mirbase.readcounts.tsv
-    echo {input} | tr " " "\t"| sed s/"mirbase_alignment\/"//g| sed s/".srt.dedup.bam.idxstats"//g >> mirbase_counts/mirbase.readcounts.tsv
+    echo {input} | tr " " "\t"| sed s/"mirbase_alignment\/"//g| sed s/".srt.bam.idxstats"//g >> mirbase_counts/mirbase.readcounts.tsv
     paste {input}| awk -f scripts/mirbase_counts.awk >> mirbase_counts/mirbase.readcounts.tsv
 
     # run TPM normalization 
@@ -227,30 +211,7 @@ rule genome_alignment:
 """
 
 
-rule genome_dedup:
-    input: 
-        "genome_alignment/{sample}.srt.bam",
-    output:
-        "genome_alignment/{sample}.srt.dedup.bam",
-        "genome_alignment/{sample}.srt.dedup.filt.bam",
 
-    params:
-        sample = lambda wildcards:  wildcards.sample,
-        bowtie_path = config["bowtie_path"],
-        bowtie_index = config["bowtie_index"],
-        umitools_path = config["umitools_path"],
-        samtools_path = config["samtools_path"],
-    
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
-    shell: """
-    {params.umitools_path} dedup --method=unique -I genome_alignment/{params.sample}.srt.bam -S genome_alignment/{params.sample}.srt.dedup.bam
-    # filter by length and gap presence 
-    {params.samtools_path} view -h genome_alignment/{params.sample}.srt.dedup.bam | \
-        awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ((length($10) > 16 && length($10) <= 28) && ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/)) {{print $0}}' | \
-        {params.samtools_path} view -Sb -> genome_alignment/{params.sample}.srt.dedup.filt.bam
-    {params.samtools_path} index genome_alignment/{params.sample}.srt.dedup.filt.bam
-"""
 
 
 rule genome_counts:
