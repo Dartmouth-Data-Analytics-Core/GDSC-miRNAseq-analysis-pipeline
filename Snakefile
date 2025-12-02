@@ -25,18 +25,13 @@ rule all:
     input:
         expand("trimming/{sample}.R1.trim.fastq.gz", sample=sample_list),
         expand("trimming/{sample}.cutadapt.report", sample=sample_list),    
-        expand("umi_reads/{sample}.umi.fastq.gz", sample=sample_list),
+        expand("umi_reads/{sample}.umi.fastq.gz", sample=sample_list) if USE_UMITOOLS else [],
         expand("mirbase_alignment/{sample}.srt.bam", sample=sample_list),
-
-
-
-
-
-
-        expand("mirbase_alignment/{sample}.srt.dedup.bam", sample=sample_list),
+        expand("mirbase_alignment/{sample}.srt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
+        expand("mirbase_alignment/{sample}.unalign.fastq", sample=sample_list),
         expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
-        expand("genome_alignment/{sample}.srt.dedup.bam", sample=sample_list),
-        expand("genome_alignment/{sample}.srt.dedup.filt.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.srt.filt.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.srt.filt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
         "metrics/mirna_genome_alignment_metrics.tsv",
         "genome_counts/featurecounts.readcounts.ann.tsv",
         "genome_counts/featurecounts.readcounts_tpm.tsv",
@@ -45,8 +40,8 @@ rule all:
         "mirbase_counts/mirbase.readcounts_tpm.tsv",
         expand("spikein_alignment/{sample}.unmapped.bowtie.fastq.gz", sample=sample_list) if USE_SPIKEINS else [],
         "spikein_counts/spikein.readcounts.tsv" if USE_SPIKEINS else [],
-        expand("mirbase_alignment/{sample}.srt.dedup.bam.idxstats", sample=sample_list),
-        expand("mirbase_alignment/{sample}.srt.dedup.bam.flagstat", sample=sample_list),
+        expand("mirbase_alignment/{sample}.srt.bam.idxstats", sample=sample_list),
+        expand("mirbase_alignment/{sample}.srt.bam.flagstat", sample=sample_list),
         "plots/PCA_1_vs_2.png"
                 
     conda:
@@ -60,7 +55,12 @@ rule all:
         "multiqc_report.html"
 
     shell: """
-        {params.multiqc}  -c multiqc_config.yaml genome_alignment  mirbase_alignment  genome_counts mirbase_counts  umi_reads
+        
+        if USE_UMITOOLS; then
+            {params.multiqc}  -c multiqc_config.yaml genome_alignment  mirbase_alignment  genome_counts mirbase_counts  umi_reads
+        else:
+            {params.multiqc}  -c multiqc_config.yaml genome_alignment  mirbase_alignment  genome_counts mirbase_counts
+        fi
 """
 
 rule trimming:
@@ -262,9 +262,10 @@ rule genome_counts:
 
 rule alignment_metrics_counts:
     input:  
-        expand("genome_alignment/{sample}.srt.dedup.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.srt.filt.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.srt.filt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
         expand("mirbase_alignment/{sample}.srt.bam", sample=sample_list),
-        expand("mirbase_alignment/{sample}.srt.dedup.bam", sample=sample_list),
+        expand("mirbase_alignment/{sample}.srt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
         "genome_counts/featurecounts.readcounts.raw.tsv.summary"
 
     output: 
@@ -292,8 +293,6 @@ rule pca_plots:
     input: "mirbase_counts/mirbase.readcounts.tsv",
 
     output:
-        #"plots/Heatmap_scaled_"+str(num_genes_compared)+"_features.png",
-        # there potentially could be more, but this plot must exist. Make sure -p flag has number at least 2 if specified
         "plots/PCA_1_vs_2.png",
         "plots/PCA_Variance_Bar_Plot.png",
         "plots/Gene_Variance_Plot.png",

@@ -7,9 +7,6 @@ This pipeline provides preprocessing and quality control of miRNA sequencing dat
 ## Pipeline summary:
 The major steps implmented in the pipeline include: 
 
-with or wiothout umis 
-
-
 - Trimming of adapters and caputuring of UMIs using [*UMI-tools*](https://github.com/CGATOxford/UMI-tools)
 - Alignment to mirBase using [*bowtie2*](https://github.com/BenLangmead/bowtie2)
 - Alignment of remaining unmapped reads to the whole genome using  [*bowtie2*](https://github.com/BenLangmead/bowtie2)

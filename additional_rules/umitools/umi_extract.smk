@@ -56,5 +56,5 @@ rule genome_dedup:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-    {params.umitools_path} dedup --method=unique -I genome_alignment/{params.sample}.srt.bam -S genome_alignment/{params.sample}.srt.dedup.bam
+    {params.umitools_path} dedup --method=unique -I genome_alignment/{params.sample}.srt.filt.bam -S genome_alignment/{params.sample}.srt.filt.dedup.bam
 """
