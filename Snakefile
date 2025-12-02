@@ -280,7 +280,11 @@ rule alignment_metrics_counts:
 
     shell: """
         mkdir -p metrics
-        python scripts/qc_metrics.py umi_reads mirbase_alignment genome_alignment
+        if USE_UMITOOLS; then
+            python scripts/qc_metrics-umi.py umi_reads mirbase_alignment genome_alignment
+        else:
+            python scripts/qc_metrics-non-umi.py mirbase_alignment genome_alignment
+        fi
 """
 
 
