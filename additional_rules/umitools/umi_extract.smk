@@ -42,10 +42,9 @@ rule mirbase_dedup:
 
 rule genome_dedup:
     input: 
-        "genome_alignment/{sample}.srt.bam",
+        "genome_alignment/{sample}.srt.filt.bam",
     output:
-        "genome_alignment/{sample}.srt.dedup.bam",
-        "genome_alignment/{sample}.srt.dedup.filt.bam",
+        "genome_alignment/{sample}.srt.filt.dedup.bam",
 
     params:
         sample = lambda wildcards:  wildcards.sample,
@@ -58,9 +57,4 @@ rule genome_dedup:
 
     shell: """
     {params.umitools_path} dedup --method=unique -I genome_alignment/{params.sample}.srt.bam -S genome_alignment/{params.sample}.srt.dedup.bam
-    # filter by length and gap presence 
-    {params.samtools_path} view -h genome_alignment/{params.sample}.srt.dedup.bam | \
-        awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ((length($10) > 16 && length($10) <= 28) && ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/)) {{print $0}}' | \
-        {params.samtools_path} view -Sb -> genome_alignment/{params.sample}.srt.dedup.filt.bam
-    {params.samtools_path} index genome_alignment/{params.sample}.srt.dedup.filt.bam
 """

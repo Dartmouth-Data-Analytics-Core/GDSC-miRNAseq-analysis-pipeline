@@ -69,12 +69,9 @@ def parse_bowtie_log(logfile):
     return reads - unaligned, unaligned, multimap
 
 
-
 umi_dir = sys.argv[1]
 mir_dir = sys.argv[2]
 genome_dir = sys.argv[3]
-
-
 
 # ------------------------------
 # Parse UMI log files

@@ -27,6 +27,12 @@ rule all:
         expand("trimming/{sample}.cutadapt.report", sample=sample_list),    
         expand("umi_reads/{sample}.umi.fastq.gz", sample=sample_list),
         expand("mirbase_alignment/{sample}.srt.bam", sample=sample_list),
+
+
+
+
+
+
         expand("mirbase_alignment/{sample}.srt.dedup.bam", sample=sample_list),
         expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
         expand("genome_alignment/{sample}.srt.dedup.bam", sample=sample_list),
@@ -156,8 +162,8 @@ rule mirbase_stats:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-    {params.samtools_path} idxstats mirbase_alignment/{params.sample}.srt.bam > mirbase_alignment/{params.sample}.srt.bam.idxstats
-    {params.samtools_path} flagstat mirbase_alignment/{params.sample}.srt.bam > mirbase_alignment/{params.sample}.srt.bam.flagstat
+    {params.samtools_path} idxstats {input} > mirbase_alignment/{params.sample}.srt.bam.idxstats
+    {params.samtools_path} flagstat {input} > mirbase_alignment/{params.sample}.srt.bam.flagstat
 
 """
 
@@ -188,6 +194,7 @@ rule genome_alignment:
         "mirbase_alignment/{sample}.unalign.fastq",
     output:
         "genome_alignment/{sample}.srt.bam",
+        "genome_alignment/{sample}.srt.filt.bam",
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie_path = config["bowtie_path"],
@@ -208,16 +215,25 @@ rule genome_alignment:
             {params.samtools_path} sort -@ 4 - > genome_alignment/{params.sample}.srt.bam
         {params.samtools_path} index genome_alignment/{params.sample}.srt.bam
         
+        # filter by gap presence 
+        {params.samtools_path} view -h genome_alignment/{params.sample}.srt.bam | \
+            awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/)) {{print $0}}' | \
+            {params.samtools_path} view -Sb -> genome_alignment/{params.sample}.srt.filt.bam
+        {params.samtools_path} index genome_alignment/{params.sample}.srt.filt.bam
 """
 
 
 
+# define function selecting input FASTQ file for alignment
+def get_genome_counts_input(wildcards):
+    if USE_UMITOOLS:
+        return f"genome_alignment/{wildcards.sample}.srt.filt.dedup.bam"
+    return f"genome_alignment/{wildcards.sample}.srt.filt.bam"
 
 
 rule genome_counts:
     input:  
-        expand("genome_alignment/{sample}.srt.dedup.filt.bam", sample=sample_list),
-
+        get_genome_counts_input,
     output: 
         "genome_counts/featurecounts.readcounts.ann.tsv",
         "genome_counts/featurecounts.readcounts_tpm.tsv",
