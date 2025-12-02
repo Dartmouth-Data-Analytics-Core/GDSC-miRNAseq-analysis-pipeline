@@ -77,9 +77,11 @@ genome_dir = sys.argv[2]
 
 mirmap_data_dict = {}
 mir_data = {}
+sample_list = []
 
 for logfile in sorted(glob(mir_dir+"/*mirbase.log.txt")):
     sample_id = Path(logfile).name.replace("_mirbase.log.txt", "")
+    sample_list.append(sample_id)
     reads, mapped, unmapped, multimap = parse_bowtie_log(logfile)
     mir_data[sample_id] = {"reads": reads, "mapped": mapped, "unmapped": unmapped, "multimap": multimap}
 
@@ -113,7 +115,8 @@ metrics = pd.DataFrame(index=[
     "% of reads multimapping genome",
     "# of reads assigned in featurecounts",
     "% of reads assigned in featurecounts"
-], columns=sample_list)
+    ], 
+    columns=sample_list)
 
 # ------------------------------
 # miRBase counts
