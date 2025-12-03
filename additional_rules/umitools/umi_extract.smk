@@ -1,3 +1,9 @@
+# define function selecting input FASTQ file for UMItools 
+def get_umitools_input(wildcards):
+    if USE_SPIKEINS:
+        return f"spikein_alignment/{wildcards.sample}.unmapped.bowtie.fastq.gz"
+    return f"trimming/{wildcards.sample}.R1.trim.fastq.gz"
+
 rule umitools:
     input: 
         get_umitools_input,

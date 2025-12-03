@@ -50,16 +50,15 @@ rule all:
 
     params:
         multiqc=config["multiqc_path"],
-
+        use_umi = USE_UMITOOLS,
     output:
         "multiqc_report.html"
 
     shell: """
-        
-        if USE_UMITOOLS; then
-            {params.multiqc}  -c multiqc_config.yaml genome_alignment  mirbase_alignment  genome_counts mirbase_counts  umi_reads
-        else:
-            {params.multiqc}  -c multiqc_config.yaml genome_alignment  mirbase_alignment  genome_counts mirbase_counts
+        if [ "{params.use_umi}" = "true" ]; then
+            {params.multiqc} -v -c multiqc_config.yaml genome_alignment mirbase_alignment genome_counts mirbase_counts umi_reads
+        else
+            {params.multiqc} -v -c multiqc_config.yaml genome_alignment mirbase_alignment genome_counts mirbase_counts
         fi
 """
 
@@ -85,16 +84,10 @@ rule trimming:
             --trim-n > trimming/{params.sample}.cutadapt.report
     """
 
-# define function selecting input FASTQ file for UMItools 
-def get_umitools_input(wildcards):
-    if USE_SPIKEINS:
-        return f"spikein_alignment/{wildcards.sample}.unmapped.bowtie.fastq.gz"
-    return f"trimming/{wildcards.sample}.R1.trim.fastq.gz"
-
 # define function selecting input FASTQ file for alignment
 def get_alignment_input(wildcards):
     if USE_UMITOOLS:
-        return f"umi_reads/{sample}.umi.fastq.gz"
+        return f"umi_reads/{wildcards.sample}.umi.fastq.gz"
     return f"trimming/{wildcards.sample}.R1.trim.fastq.gz"
 
 rule mirbase_alignment:
@@ -217,8 +210,8 @@ rule genome_alignment:
         
         # filter by gap presence 
         {params.samtools_path} view -h genome_alignment/{params.sample}.srt.bam | \
-            awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/)) {{print $0}}' | \
-            {params.samtools_path} view -Sb -> genome_alignment/{params.sample}.srt.filt.bam
+            awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/) {{print $0}}' | \
+            {params.samtools_path} view -Sb -o genome_alignment/{params.sample}.srt.filt.bam
         {params.samtools_path} index genome_alignment/{params.sample}.srt.filt.bam
 """
 
@@ -233,7 +226,9 @@ def get_genome_counts_input(wildcards):
 
 rule genome_counts:
     input:  
-        get_genome_counts_input,
+        (expand("genome_alignment/{sample}.srt.filt.dedup.bam", sample=sample_list) 
+        if USE_UMITOOLS 
+        else expand("genome_alignment/{sample}.srt.filt.bam", sample=sample_list)),
     output: 
         "genome_counts/featurecounts.readcounts.ann.tsv",
         "genome_counts/featurecounts.readcounts_tpm.tsv",
@@ -273,17 +268,15 @@ rule alignment_metrics_counts:
         "metrics/mirna_genome_alignment_metrics.xlsx",
 
     params:
-        gtf = config['annotation_gtf'],
+        use_umi = USE_UMITOOLS,
     conda:
         "env_config/featurecounts.yaml",
-
     resources: cpus="1", maxtime="8:00:00", mem_mb="2gb",
-
     shell: """
         mkdir -p metrics
-        if USE_UMITOOLS; then
+        if [ "{params.use_umi}" = "true" ]; then
             python scripts/qc_metrics-umi.py umi_reads mirbase_alignment genome_alignment
-        else:
+        else
             python scripts/qc_metrics-non-umi.py mirbase_alignment genome_alignment
         fi
 """
