@@ -7,10 +7,10 @@
 #SBATCH --nodes=1
 
 # partition
-#SBATCH --partition=preempt1
+#SBATCH --partition=standard
 
 # account
-#SBATCH --account=dac
+#SBATCH --account=nccc
 
 # Walltime (job duration)
 #SBATCH --time=60:00:00
