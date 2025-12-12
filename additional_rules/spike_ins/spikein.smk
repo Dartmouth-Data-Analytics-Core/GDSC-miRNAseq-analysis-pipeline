@@ -6,6 +6,7 @@ rule spikein_bbduk:
         unmapped = "spikein_alignment/{sample}.unmapped.fastq.gz"
     params:
         spikein_ref = config["spikein_reference_core"]  
+    resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
     threads: 8
     conda:
         "../../env_config/bbmap.yaml"
@@ -32,6 +33,7 @@ rule spikein_counts:
         "spikein_counts/spikein.readcounts.tsv"
     params:
         samples = " ".join(sample_list)
+    resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
     shell: """
         mkdir -p spikein_counts
         python scripts/parse_bbduk_spikein_stats.py \
@@ -49,6 +51,7 @@ rule mappingBowtieSpikeIns:
         map = "spikein_alignment/{sample}.map",
         unmapped = "spikein_alignment/{sample}.unmapped.bowtie.fastq.gz"
     threads: 12
+    resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
     log:    "spikein_alignment/{sample}.log" 
     conda:
         "../../env_config/bowtie1.yaml"
@@ -73,6 +76,7 @@ rule normalize_data_spikein:
         "spikein_metrics/normalized_scalefactor_mirbase_counts.tsv"
     conda:
         "../../env_config/r_env.yaml"
+    resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
     shell:
         """
         mkdir -p spikein_metrics
