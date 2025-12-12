@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+################################################################################
 # Script:   qc_metrics.py
 # Purpose:  Parse UMI logs, miRBase alignment logs, and genome alignment logs
 #           to generate a combined QC metrics table.
@@ -20,7 +20,6 @@
 #   metrics/mirna_genome_alignment_metrics.xlsx
 #
 # Author: Beatriz Bergamo
-
 import sys
 from glob import glob
 import pandas as pd
@@ -34,10 +33,8 @@ def run_samtools_count(bam, include_flag=None, exclude_flag=None):
         cmd.extend(["-f", str(include_flag)])
     if exclude_flag is not None:
         cmd.extend(["-F", str(exclude_flag)])
-
     result = subprocess.run(cmd, text=True, check=True, capture_output=True)
     return int(result.stdout.strip())
-
 
 def parse_log_value(logfile, key):
     """Return the last integer found in a log file line containing key."""
@@ -48,12 +45,10 @@ def parse_log_value(logfile, key):
                 value = int(line.strip().split()[-1])
     return value
 
-
 def parse_bowtie_log(logfile):
     """Parse bowtie-style log and return mapped, unmapped, multimap."""
     reads = None
     unaligned = None
-    
     with open(logfile) as f:
         for line in f:
             if "reads; of these" in line:
@@ -62,49 +57,36 @@ def parse_bowtie_log(logfile):
                 unaligned = int(line.strip().split()[0])
             if "aligned >1 times" in line:
                 multimap = int(line.strip().split()[0])
-
     if reads is None or unaligned is None:
         raise ValueError(f"Log file {logfile} missing expected fields.")
-
     return reads - unaligned, unaligned, multimap
 
-
-
+# set variables for input directories from parser 
 umi_dir = sys.argv[1]
 mir_dir = sys.argv[2]
 genome_dir = sys.argv[3]
-
-
 
 # ------------------------------
 # Parse UMI log files
 # ------------------------------
 umi_data = {}
 sample_list = []
-
 for logfile in sorted(glob(umi_dir+"/*.log.txt")):
     sample_id = logfile.split(".")[0].split("/")[-1]
     sample_list.append(sample_id)
-
     reads_before = parse_log_value(logfile, "INFO Input Reads:")
     reads_after  = parse_log_value(logfile, "INFO Reads output:")
     reads_removed = reads_before - reads_after
-
     umi_data[sample_id] = {
         "reads_before": reads_before,
         "reads_removed": reads_removed,
         "reads_after": reads_after,
     }
 
-
-
 # ------------------------------
 # Parse miRBase mapping logs
 # ------------------------------
-
-mirmap_data_dict = {}
 mir_data = {}
-
 for logfile in sorted(glob(mir_dir+"/*mirbase.log.txt")):
     sample_id = Path(logfile).name.replace("_mirbase.log.txt", "")
     mapped, unmapped, multimap = parse_bowtie_log(logfile)
@@ -113,20 +95,15 @@ for logfile in sorted(glob(mir_dir+"/*mirbase.log.txt")):
 # ------------------------------
 # Parse genome mapping logs
 # ------------------------------
-
 genome_data = {}
 for logfile in sorted(glob(genome_dir+"/*genome.log.txt")):
     sample_id = Path(logfile).name.replace("_genome.log.txt", "")
     mapped, unmapped, multimap = parse_bowtie_log(logfile)
     genome_data[sample_id] = {"mapped": mapped, "multimap": multimap}
 
-
-
 # ------------------------------
 # Build metrics DataFrame
 # ------------------------------
-
-
 sample_list = sorted(sample_list)
 metrics = pd.DataFrame(index=[
     "# of reads",
@@ -148,26 +125,19 @@ metrics = pd.DataFrame(index=[
     "% of reads assigned in featurecounts"
 ], columns=sample_list)
 
-
 # ------------------------------
 # Fill UMI rows
 # ------------------------------
-
 metrics.loc["# of reads"] = [umi_data[s]["reads_before"] for s in sample_list]
 metrics.loc["# of UMI-containing reads"] = [umi_data[s]["reads_after"] for s in sample_list]
-
 metrics.loc["% of UMI-containing reads"] = (
     metrics.loc["# of UMI-containing reads"].astype(float)
     / metrics.loc["# of reads"].astype(float) * 100
 ).round(2)
 
-
-
-
 # ------------------------------
 # miRBase counts
 # ------------------------------
-
 metrics.loc["# of reads mapping to mirbase"] = [mir_data[s]["mapped"] for s in sample_list]
 metrics.loc["% of reads mapping to mirbase"] = (
     metrics.loc["# of reads mapping to mirbase"].astype(float)
@@ -187,44 +157,36 @@ metrics.loc["# of reads mapping to miRBase after length/gap/MAPQ/mismatch filter
 # ------------------------------
 # Genome counts
 # ------------------------------
-
+# genome BAMs 
 genome_bams = sorted(glob(genome_dir+"/*.srt.bam"))
 metrics.loc["# of reads mapped genome"] = [
     run_samtools_count(bam, exclude_flag=4) for bam in genome_bams
 ]
-
 metrics.loc["# of reads multimapping genome"] = [genome_data[s]["multimap"] for s in sample_list]
 metrics.loc["% of reads multimapping genome"] = (
     metrics.loc["# of reads multimapping genome"].astype(float) 
     / metrics.loc["# of UMI-containing reads"].astype(float) * 100).round(2)
-
+# deduplicated BAMs 
 dedup_bams = sorted(glob(genome_dir+"/*.srt.dedup.bam"))
 metrics.loc["# of reads after deduplication"] = [
     run_samtools_count(bam, exclude_flag=4) for bam in dedup_bams
 ]
 
-
-
-
 # ------------------------------
 # FeatureCounts assignment
 # ------------------------------
-
+# load featurecounts summary file 
 fc = pd.read_csv("genome_counts/featurecounts.readcounts.raw.tsv.summary",
                  sep="\t", index_col=0)
-
+# assign valus to metrics 
 metrics.loc["# of reads assigned in featurecounts"] = fc.loc["Assigned"].tolist()
-
 metrics.loc["% of reads assigned in featurecounts"] = (
     metrics.loc["# of reads assigned in featurecounts"].astype(float)
     / metrics.loc["# of UMI-containing reads"].astype(float) * 100
 ).round(2)
 
-
-
-
 # ------------------------------
-# % Calculations
+# additional calculations 
 # ------------------------------
 # % of reads mapped genome
 metrics.loc["% of reads mapped genome"] =  (
@@ -243,9 +205,8 @@ metrics.loc["% of reads mapping to miRBase after length/gap/MAPQ/mismatch filter
 ).round(2)
 
 # ------------------------------
-# Output
+# write output files 
 # ------------------------------
-
 metrics.to_csv( "metrics/mirna_genome_alignment_metrics.tsv", sep="\t", index=True)
 metrics.to_excel("metrics/mirna_genome_alignment_metrics.xlsx", index=True)
 
