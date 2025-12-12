@@ -42,6 +42,7 @@ rule all:
         "spikein_counts/spikein.readcounts.tsv" if USE_SPIKEINS else [],
         expand("mirbase_alignment/{sample}.srt.bam.idxstats", sample=sample_list),
         expand("mirbase_alignment/{sample}.srt.bam.flagstat", sample=sample_list),
+        "spikein_metrics/normalized_scalefactor_mirbase_counts.tsv" if USE_SPIKEINS else [],
         "plots/PCA_1_vs_2.png"
                 
     conda:

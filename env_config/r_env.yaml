@@ -1,0 +1,11 @@
+name: r_env
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  - r-base=4.3.*
+  - r-tidyverse
+  - r-ggplot2
+  - r-gridextra
