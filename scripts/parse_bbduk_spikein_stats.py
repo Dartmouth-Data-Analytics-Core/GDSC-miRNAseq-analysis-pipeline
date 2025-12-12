@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 ################################################################################
 # Script Name: parse_bbduk_spikein_stats.py
 #
@@ -34,9 +33,8 @@
 # Output:
 #   - <output>.tsv: Table with spike-ins (miND-01..miND-07) as rows and sample
 #                   read counts as columns. Missing counts are filled with zero.
-#
 # Author:
-#   Beatriz Bergamo
+#   Beatriz Bergamo, Owen Wilkins
 ################################################################################
 
 import sys
@@ -46,72 +44,82 @@ import pandas as pd
 def parse_args():
     parser = argparse.ArgumentParser(description='Parse BBDuk spike-in stats')
     parser.add_argument('--stats', nargs='+', required=True, help='BBDuk stats files')
-    parser.add_argument('--samples', type=str, required=True, help='Space-separated sample names')
+    # Keep samples as a single space-separated string for backward compatibility
+    parser.add_argument('--samples', type=str, required=True, help='Space-separated sample names (in the same order as --stats)')
     parser.add_argument('--output', type=str, required=True, help='Output file')
     return parser.parse_args()
 
-def parse_bbduk_stats(stats_file):
+### add documentation 
+
+def parse_bbduk_stats(stats_file, verbose=False):
     """
-    Parse BBDuk stats file with miND spike-in format:
-    #File
-    #Total
-    #Matched
-    #Name   Reads   ReadsPct
-    #miND-01   9093   0.25671%
+    Script Name: parse_bbduk_stats
+    Description:
+        Parse a single BBDuk spike-in stats file and extract miND spike-in read counts.
+        It returns a dictionary mapping spike-in identifiers (e.g., 'miND-01') to integer
+        read counts. Header/metadata lines are ignored and malformed rows are skipped.
+    Usage:
+        parse_bbduk_stats(stats_file, verbose=False)
+    Required Arguments:
+        stats_file (str): Path to a BBDuk .stats file.
+    Optional Arguments:
+        verbose (bool): If True, print warnings for skipped or malformed lines to stderr.
+    Example:
+        >>> parse_bbduk_stats('spikein_alignment/S1.stats', verbose=True)
+        {'miND-01': 9093, 'miND-02': 5000}
+    Output:
+        dict: Mapping from spike-in ID to integer read count. Example:
+              {'miND-01': 9093, 'miND-02': 5000}
     """
     data = {}
-
-    with open(stats_file, 'r') as f:
-        for line in f:
+    # read file line by line and extract read counts for each spike-in
+    with open(stats_file, 'r', encoding='utf-8') as f:
+        for lineno, line in enumerate(f, start=1):
             line = line.strip()
             if not line:
                 continue
-
             # Skip only metadata / header lines
             if line.startswith("#File") or line.startswith("#Total") or line.startswith("#Matched") or line.startswith("#Name"):
                 continue
-
+            # Split line into columns
             parts = line.split("\t")
             if len(parts) < 2:
+                if verbose:
+                    print(f"Skipping malformed line {lineno} in {stats_file}: less than 2 columns: {line}", file=sys.stderr)
                 continue
-
-            spike_id = parts[0]
-            reads_str = parts[1]
-
-            # Keep only miND spike-ins
+            spike_id, reads_str = parts[0], parts[1]
+            # extract reads, keeping only miND spike-ins
             if spike_id.startswith("#miND-"):
-                spike_id = spike_id.lstrip("#")  # remove leading #
+                spike_id = spike_id.lstrip("#")
                 try:
                     reads = int(reads_str)
                 except ValueError:
+                    if verbose:
+                        print(f"Skipping line {lineno} in {stats_file} due to invalid reads value '{reads_str}': {line}", file=sys.stderr)
                     continue
-
                 data[spike_id] = reads
-
     return data
-
 
 def main():
     args = parse_args()
     samples = args.samples.split()
-
+    # Validate that the provided stats files and sample names map 1:1
+    if len(args.stats) != len(samples):
+        sys.exit('Error: The number of --stats files must match the number of --samples names')
     spike_data = {}
-
     # Parse each stats file paired with corresponding sample
     for stats_file, sample in zip(args.stats, samples):
         print(f"Parsing {stats_file} ({sample})...")
-        stats = parse_bbduk_stats(stats_file)
-
+        stats = parse_bbduk_stats(stats_file, verbose=True)
+        # extract read counts for each spike-in and add to spike_data as nested dicts 
         for spike_id, read_count in stats.items():
             if spike_id not in spike_data:
                 spike_data[spike_id] = {}
             spike_data[spike_id][sample] = read_count
-
     # Convert to DataFrame
     df = pd.DataFrame.from_dict(spike_data, orient='index')
     df.index.name = "spikein_ID"
     df = df.fillna(0).astype(int)
-
     df.to_csv(args.output, sep="\t")
     print(f"\n✅ Spike-in counts saved to: {args.output}")
     print(f"Shape: {df.shape}")
