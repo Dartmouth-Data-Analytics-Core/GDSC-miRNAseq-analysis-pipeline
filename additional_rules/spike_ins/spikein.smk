@@ -71,6 +71,8 @@ rule normalize_data_spikein:
     output:
         "spikein_metrics/spikein_detection_metrics.tsv",
         "spikein_metrics/normalized_scalefactor_mirbase_counts.tsv"
+    conda:
+        "../../env_config/r_env.yaml"
     shell:
         """
         mkdir -p spikein_metrics
