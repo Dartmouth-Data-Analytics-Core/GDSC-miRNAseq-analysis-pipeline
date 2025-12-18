@@ -66,6 +66,27 @@ spikes_with_conc <- spikes_obs %>%
   left_join(spikes_info, by = "spikein_ID")
 
 
+# -------------------------------------------------------------
+# Remove samples without any spike-ins
+# -------------------------------------------------------------
+
+samples_before <- unique(spikes_with_conc$samples)
+
+spikes_with_conc <- spikes_with_conc %>% group_by(samples) %>%                        
+  filter(sum(counts) >= 100) %>%                  
+  ungroup()
+
+samples_kept   <- unique(spikes_with_conc$samples)
+samples_removed <- setdiff(samples_before, samples_kept)
+
+if (length(samples_removed) > 0) {
+  writeLines(samples_removed, "spikein_metrics/removed_samples_no_spikeins.txt")
+  
+  mirna_counts <- mirna_counts %>%
+    select(-any_of(samples_removed))
+}
+
+
 # Spike-ins detected (counts > 0)
 spikes_detected <- spikes_with_conc %>%
   filter(counts > 0)
