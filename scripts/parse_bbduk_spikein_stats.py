@@ -19,7 +19,7 @@
 #   python parse_bbduk_spikein_stats.py \
 #       --stats spikein_alignment/{sample1}.stats spikein_alignment/{sample2}.stats spikein_alignment/{sample3}.stats \
 #       --samples "S1 S2 S3" \
-#       --output spikein_counts.tsv
+#       --output spikein.readcounts.tsv
 #
 # Input Format (BBDuk .stats file):
 #   #File
