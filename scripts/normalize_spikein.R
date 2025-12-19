@@ -23,7 +23,6 @@
 # 8. Outputs TSV files with QC metrics and normalized concentrations
 # -------------------------------------------------------------
 
-
 library(tidyverse)
 library(ggplot2)
 library(gridExtra)
@@ -262,7 +261,7 @@ mirna_normalized %>%
 # 2. Plot miRNA reads with detection-range shading
 for (sample in unique(mirna_long$sample_id)) {
   # Spike-ins for this sample
-  spikes_this <- spikes_detected %>% filter(samples == sample)
+  spikes_this_real_conc <- spikes_with_conc %>% filter(samples == sample)
 
   # Model for this sample
   fm <- per_sample_models %>%
@@ -270,6 +269,8 @@ for (sample in unique(mirna_long$sample_id)) {
     pull(model) %>%
     .[[1]]
   
+  spikes_this_predicted <- spikes_this_real_conc %>%
+    mutate(predicted_concentration = predict(fm, newdata = data.frame(counts = counts)))
   limits <- spikeins_stats %>%
     filter(sample_id == sample)
   
@@ -278,13 +279,11 @@ for (sample in unique(mirna_long$sample_id)) {
   rsq_value <- limits$rsq[[1]]
   percent_in_range <- limits$percent_in_range[[1]]
   
-  spikes_this <- spikes_this %>%
-    mutate(concentration = predict(fm, newdata = data.frame(counts = counts)))
   
   # ------------------- PLOT 1: Spike-in calibration -------------------
-  p1 <- ggplot(spikes_this, aes(counts, concentration)) +
-    geom_point(size = 3, color = "darkblue") +
-    geom_line(aes(y = concentration), color = "blue", linetype = "dashed", linewidth = 0.5) +
+  p1 <- ggplot(spikes_this_predicted, aes(counts)) +
+    geom_point(aes(y = molecules_concentration), size = 3, color = "darkblue") +
+    geom_line(aes(y = predicted_concentration), color = "blue", linetype = "dashed", linewidth = 0.5) +
     scale_x_log10() +
     scale_y_log10() +
     annotation_logticks(size = 0.2) +
