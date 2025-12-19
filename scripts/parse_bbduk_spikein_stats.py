@@ -39,11 +39,22 @@
 
 import sys
 import argparse
+import re
 import pandas as pd
 
+# for debugging 
+#sys.argv = ['parse_bbduk_spikein_stats.py', 
+#            '--stats', 'spikein_alignment/acaro_5BS54_left_90_spk.stats spikein_alignment/acaro_5BS54_left_90.stats spikein_alignment/nhbcs_E33_spk.stats spikein_alignment/nhbcs_E33.stats spikein_alignment/nhbcs_E4_spk.stats spikein_alignment/nhbcs_E4.stats',
+#            '--samples', 'acaro_5BS54_left_90_spk acaro_5BS54_left_90 nhbcs_E33_spk nhbcs_E33 nhbcs_E4_spk nhbcs_E4',
+#            '--output', 'test_output.tsv']
+
+# Expected spike-ins
+EXPECTED_SPIKEINS = [f"miND-{i:02d}" for i in range(1, 8)]
+
+# define command line arguments
 def parse_args():
     parser = argparse.ArgumentParser(description='Parse BBDuk spike-in stats')
-    parser.add_argument('--stats', nargs='+', required=True, help='BBDuk stats files')
+    parser.add_argument('--stats', type=str, required=True, help='BBDuk stats files')
     # Keep samples as a single space-separated string for backward compatibility
     parser.add_argument('--samples', type=str, required=True, help='Space-separated sample names (in the same order as --stats)')
     parser.add_argument('--output', type=str, required=True, help='Output file')
@@ -81,8 +92,8 @@ def parse_bbduk_stats(stats_file, verbose=False):
             # Skip only metadata / header lines
             if line.startswith("#File") or line.startswith("#Total") or line.startswith("#Matched") or line.startswith("#Name"):
                 continue
-            # Split line into columns
-            parts = line.split("\t")
+            # Split line on any whitespace (handles tab or space separated files)
+            parts = re.split(r"\s+", line)
             if len(parts) < 2:
                 if verbose:
                     print(f"Skipping malformed line {lineno} in {stats_file}: less than 2 columns: {line}", file=sys.stderr)
@@ -98,17 +109,21 @@ def parse_bbduk_stats(stats_file, verbose=False):
                         print(f"Skipping line {lineno} in {stats_file} due to invalid reads value '{reads_str}': {line}", file=sys.stderr)
                     continue
                 data[spike_id] = reads
+    # Ensure all expected spike-ins are present; fill missing with zero
+    for sp in EXPECTED_SPIKEINS:
+        data.setdefault(sp, 0)
     return data
 
 def main():
     args = parse_args()
     samples = args.samples.split()
+    stats_files = args.stats.split()
     # Validate that the provided stats files and sample names map 1:1
-    if len(args.stats) != len(samples):
+    if len(stats_files) != len(samples):
         sys.exit('Error: The number of --stats files must match the number of --samples names')
     spike_data = {}
     # Parse each stats file paired with corresponding sample
-    for stats_file, sample in zip(args.stats, samples):
+    for stats_file, sample in zip(stats_files, samples):
         print(f"Parsing {stats_file} ({sample})...")
         stats = parse_bbduk_stats(stats_file, verbose=True)
         # extract read counts for each spike-in and add to spike_data as nested dicts 

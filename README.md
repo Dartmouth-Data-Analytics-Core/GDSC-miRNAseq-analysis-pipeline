@@ -23,6 +23,8 @@ The pipeline uses Snakemake to submit jobs to the scheduler, or spawn processes 
 
 * **annotation_gtf** - Absolute path to genome annotation file (.gtf) of [*Featurecouts*](http://subread.sourceforge.net/) or [*RSEM*](https://deweylab.github.io/RSEM/)
 * **featurecounts_strand** - "1" or "2" #1 for first read transcription strand, 2 for second, 0 for unstranded.*  
+* **adapter_3prime** - the 3'-end adapter that was used in sequencing. It is important this is specified correctly to ensure fidelity of end-to-end alignment, which will not soft clip sequencing adapters. 
+* **nextseq_trim** - cutadapt flag and value for NextSeq quality trimming; set to "" to disable. 
 
 ## Running tests using pre-built environments on Discovery
 Clone this repository:

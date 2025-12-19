@@ -10,6 +10,8 @@ sample_tsv: "sample_fastq_list.txt"
 layout: "single"
 use_spikeins: false
 use_umitools: false
+adapter_3prime: "AGATCGGAAGAGCACACGTCTGAACTCCAGTCA"
+nextseq_trim: "--nextseq-trim=30" # cutadapt flag and value for NextSeq quality trimming; set to "" to disable
 
 ############################################
 # spike-in info

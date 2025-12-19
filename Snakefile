@@ -70,6 +70,8 @@ rule trimming:
     params:
         sample = lambda wildcards:  wildcards.sample,
         fastq_file_1 = lambda wildcards: samples_df.loc[wildcards.sample, "fastq_1"],
+        adapter_3prime = config["adapter_3prime"],
+        nextseq_trim = config["nextseq_trim"],
     conda:
         "env_config/cutadapt.yaml",
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
@@ -78,10 +80,11 @@ rule trimming:
             -o trimming/{params.sample}.R1.trim.fastq.gz \
             {params.fastq_file_1} \
             -m 1 \
-            --nextseq-trim=30 \
+            {params.nextseq_trim} \
             -j {resources.cpus} \
             -q 30 \
             --max-n 0.8 \
+            -a {params.adapter_3prime} \
             --trim-n > trimming/{params.sample}.cutadapt.report
     """
 
@@ -219,17 +222,15 @@ rule genome_alignment:
 
 
 # define function selecting input FASTQ file for alignment
-def get_genome_counts_input(wildcards):
+def get_genome_counts_input():
     if USE_UMITOOLS:
-        return f"genome_alignment/{wildcards.sample}.srt.filt.dedup.bam"
-    return f"genome_alignment/{wildcards.sample}.srt.filt.bam"
+        return expand("genome_alignment/{sample}.srt.filt.dedup.bam", sample=sample_list)
+    return expand("genome_alignment/{sample}.srt.filt.bam", sample=sample_list)
 
 
 rule genome_counts:
     input:  
-        (expand("genome_alignment/{sample}.srt.filt.dedup.bam", sample=sample_list) 
-        if USE_UMITOOLS 
-        else expand("genome_alignment/{sample}.srt.filt.bam", sample=sample_list)),
+        get_genome_counts_input
     output: 
         "genome_counts/featurecounts.readcounts.ann.tsv",
         "genome_counts/featurecounts.readcounts_tpm.tsv",
