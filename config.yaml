@@ -15,6 +15,7 @@ nextseq_trim: "--nextseq-trim=30" # cutadapt flag and value for NextSeq quality 
 
 ############################################
 # spike-in info
+sample_with_spikein_finalvolume: 5 # if using NextFLEX, need to change this value
 bowtie_spikein_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/250805_smRNA/spike-in_pipeline/GDSC-miRNAseq-analysis-pipeline/refs/spikeins/spikeins_full"
 spikein_reference_core: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/251106_miRNA/refs/spikeins/spikeins_core.fa"
 

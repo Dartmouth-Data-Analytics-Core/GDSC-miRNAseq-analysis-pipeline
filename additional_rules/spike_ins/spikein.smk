@@ -77,8 +77,10 @@ rule normalize_data_spikein:
     conda:
         "../../env_config/r_env.yaml"
     resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
+    params:
+        final_volume = config["sample_with_spikein_finalvolume"]
     shell:
         """
         mkdir -p spikein_metrics
-        Rscript scripts/normalize_spikein.R
+        Rscript scripts/normalize_spikein.R {params.final_volume}
         """

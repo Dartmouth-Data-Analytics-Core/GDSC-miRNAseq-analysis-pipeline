@@ -39,6 +39,8 @@ spikes_obs <- read_tsv("spikein_counts/spikein.readcounts.tsv")
 # miRNA raw counts (aligned to miRBase)
 mirna_counts <- read_tsv("mirbase_counts/mirbase.readcounts.tsv")
 
+args <- commandArgs(trailingOnly = TRUE)
+
 # -------------------------------------------------------------
 # Spike-in concentration metadata
 # -------------------------------------------------------------
@@ -50,7 +52,7 @@ spikes_info <- tibble(
 # Volumes used in spike-in mixture
 amol <- 602214 # Avogadro constant used in provider's conversion (kept for clarity)
 spikeInsVolume <- 1  # Spike-in input volume (µL)
-finalVolume <- 5     # Final sample volume (µL)
+finalVolume <- as.numeric(args[1])     # Final sample volume (µL)
 
 # Adjust final spike-in concentration after dilution
 spikes_info <- spikes_info %>%
@@ -290,8 +292,8 @@ for (sample in unique(mirna_long$sample_id)) {
     labs(
       title = "Spike-in Calibration",
       subtitle = paste0("R² = ", round(rsq_value, 4)),
-      x = "Reads (log10)",
-      y = "Concentration (log10 molecules/µL)"
+      x = "Read Count",
+      y = "Concentration (molecules/µL)"
     ) +
     theme_bw()
   
@@ -321,7 +323,7 @@ for (sample in unique(mirna_long$sample_id)) {
       title = "miRNA Read Distribution",
       subtitle = paste0(percent_in_range, "% miRNAs in range"),
       x = "Sample",
-      y = "Reads (log10)",
+      y = "Read Count",
       color = "Range"
     ) +
     theme_bw() +
