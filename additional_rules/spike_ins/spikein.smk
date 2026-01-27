@@ -32,15 +32,16 @@ rule spikein_counts:
     output:
         "spikein_counts/spikein.readcounts.tsv"
     params:
-        samples = " ".join(sample_list)
+        samples=lambda wildcards, input: [path.split("/")[-1].replace(".stats","") for path in input]
     resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
     shell: """
+        echo STATS: {input}
+        echo SAMPLES: {params.samples}
         mkdir -p spikein_counts
         python scripts/parse_bbduk_spikein_stats.py \
             --stats {input} \
-            --samples "{params.samples}" \
-            --output {output[0]}
-        
+            --samples {params.samples} \
+            --output {output}
     """
 
 

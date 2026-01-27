@@ -54,14 +54,12 @@ EXPECTED_SPIKEINS = [f"miND-{i:02d}" for i in range(1, 8)]
 # define command line arguments
 def parse_args():
     parser = argparse.ArgumentParser(description='Parse BBDuk spike-in stats')
-    parser.add_argument('--stats', type=str, required=True, help='BBDuk stats files')
-    # Keep samples as a single space-separated string for backward compatibility
-    parser.add_argument('--samples', type=str, required=True, help='Space-separated sample names (in the same order as --stats)')
+    parser.add_argument('--stats', type=str, nargs='+', required=True, help='BBDuk stats files')
+    parser.add_argument('--samples', type=str, nargs='+', required=True, help='Space-separated sample names (in the same order as --stats)')
     parser.add_argument('--output', type=str, required=True, help='Output file')
     return parser.parse_args()
 
 ### add documentation 
-
 def parse_bbduk_stats(stats_file, verbose=False):
     """
     Script Name: parse_bbduk_stats
@@ -116,8 +114,8 @@ def parse_bbduk_stats(stats_file, verbose=False):
 
 def main():
     args = parse_args()
-    samples = args.samples.split()
-    stats_files = args.stats.split()
+    stats_files = args.stats
+    samples = args.samples
     # Validate that the provided stats files and sample names map 1:1
     if len(stats_files) != len(samples):
         sys.exit('Error: The number of --stats files must match the number of --samples names')

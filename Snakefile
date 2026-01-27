@@ -222,7 +222,7 @@ rule genome_alignment:
 
 
 # define function selecting input FASTQ file for alignment
-def get_genome_counts_input():
+def get_genome_counts_input(wildcards):
     if USE_UMITOOLS:
         return expand("genome_alignment/{sample}.srt.filt.dedup.bam", sample=sample_list)
     return expand("genome_alignment/{sample}.srt.filt.bam", sample=sample_list)
