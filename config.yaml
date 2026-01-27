@@ -3,8 +3,21 @@
 # sample meta data file
 sample_tsv: "sample_fastq_list.txt"
 
+############################################
+# general setting 
+############################################
 # sequencing config
 layout: "single"
+use_spikeins: false
+use_umitools: false
+adapter_3prime: "AGATCGGAAGAGCACACGTCTGAACTCCAGTCA"
+nextseq_trim: "--nextseq-trim=30" # cutadapt flag and value for NextSeq quality trimming; set to "" to disable
+
+############################################
+# spike-in info
+sample_with_spikein_finalvolume: 5 # if using NextFLEX, need to change this value
+bowtie_spikein_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/250805_smRNA/spike-in_pipeline/GDSC-miRNAseq-analysis-pipeline/refs/spikeins/spikeins_full"
+spikein_reference_core: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/251106_miRNA/refs/spikeins/spikeins_core.fa"
 
 #############################################
 # Software Paths for use with "--use-conda" #
@@ -21,7 +34,7 @@ featurecounts_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/feat
 ############################################# 
 
 ##### HUMAN ####
-bowtie_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/snakemake/mirna-seq/DAC-RNAseq-pipeline/refs/human_mature_mirbase-padded_U_to_T/human_mature_mirbas$
+bowtie_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/mirbase-human-hg38-padded/mirbase-human-hg38-padded"
 bowtie_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/hg38-bowtie2-index/hg38-bowtie2-index"
 annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/ensembl-annotations/Homo_sapiens.GRCh38.97.gtf"
 

@@ -5,6 +5,8 @@ import pandas as pd
 
 # set config file
 configfile: "config.yaml"
+USE_SPIKEINS = config.get("use_spikeins", False)
+USE_UMITOOLS = config.get("use_umitools", False)
 
 # read in sample data
 samples_df = pd.read_table(config["sample_tsv"]).set_index("sample_id", drop=False)
@@ -14,25 +16,34 @@ sample_list = list(samples_df['sample_id'])
 # define rules
 #####~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+if USE_SPIKEINS:
+    include: "additional_rules/spike_ins/spikein.smk"
+if USE_UMITOOLS:
+    include: "additional_rules/umitools/umi_extract.smk"
+
 rule all:
     input:
         expand("trimming/{sample}.R1.trim.fastq.gz", sample=sample_list),
         expand("trimming/{sample}.cutadapt.report", sample=sample_list),    
-        expand("umi_reads/{sample}.umi.fastq.gz", sample=sample_list),
+        expand("umi_reads/{sample}.umi.fastq.gz", sample=sample_list) if USE_UMITOOLS else [],
         expand("mirbase_alignment/{sample}.srt.bam", sample=sample_list),
-        expand("mirbase_alignment/{sample}.srt.dedup.bam", sample=sample_list),
+        expand("mirbase_alignment/{sample}.srt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
+        expand("mirbase_alignment/{sample}.unalign.fastq", sample=sample_list),
         expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
-        expand("genome_alignment/{sample}.srt.dedup.bam", sample=sample_list),
-        expand("genome_alignment/{sample}.srt.dedup.filt.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.srt.filt.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.srt.filt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
         "metrics/mirna_genome_alignment_metrics.tsv",
         "genome_counts/featurecounts.readcounts.ann.tsv",
         "genome_counts/featurecounts.readcounts_tpm.tsv",
         "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
         "mirbase_counts/mirbase.readcounts.tsv",
         "mirbase_counts/mirbase.readcounts_tpm.tsv",
-        "plots/PCA_Variance_Bar_Plot.png",
-        expand("mirbase_alignment/{sample}.srt.dedup.bam.idxstats", sample=sample_list),
-        expand("mirbase_alignment/{sample}.srt.dedup.bam.flagstat", sample=sample_list)
+        expand("spikein_alignment/{sample}.unmapped.bowtie.fastq.gz", sample=sample_list) if USE_SPIKEINS else [],
+        "spikein_counts/spikein.readcounts.tsv" if USE_SPIKEINS else [],
+        expand("mirbase_alignment/{sample}.srt.bam.idxstats", sample=sample_list),
+        expand("mirbase_alignment/{sample}.srt.bam.flagstat", sample=sample_list),
+        "spikein_metrics/normalized_scalefactor_mirbase_counts.tsv" if USE_SPIKEINS else [],
+        "plots/PCA_1_vs_2.png"
                 
     conda:
         "env_config/multiqc.yaml",
@@ -40,14 +51,17 @@ rule all:
 
     params:
         multiqc=config["multiqc_path"],
-
+        use_umi = USE_UMITOOLS,
     output:
         "multiqc_report.html"
 
     shell: """
-        {params.multiqc}  genome_alignment  mirbase_alignment  genome_counts mirbase_counts  umi_reads
+        if [ "{params.use_umi}" = "true" ]; then
+            {params.multiqc} -v -c multiqc_config.yaml genome_alignment mirbase_alignment genome_counts mirbase_counts umi_reads
+        else
+            {params.multiqc} -v -c multiqc_config.yaml genome_alignment mirbase_alignment genome_counts mirbase_counts
+        fi
 """
-
 
 rule trimming:
     output: 
@@ -56,6 +70,8 @@ rule trimming:
     params:
         sample = lambda wildcards:  wildcards.sample,
         fastq_file_1 = lambda wildcards: samples_df.loc[wildcards.sample, "fastq_1"],
+        adapter_3prime = config["adapter_3prime"],
+        nextseq_trim = config["nextseq_trim"],
     conda:
         "env_config/cutadapt.yaml",
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
@@ -64,38 +80,23 @@ rule trimming:
             -o trimming/{params.sample}.R1.trim.fastq.gz \
             {params.fastq_file_1} \
             -m 1 \
-            --nextseq-trim=30 \
+            {params.nextseq_trim} \
             -j {resources.cpus} \
             -q 30 \
             --max-n 0.8 \
+            -a {params.adapter_3prime} \
             --trim-n > trimming/{params.sample}.cutadapt.report
     """
 
-rule umitools:
-    input: 
-        "trimming/{sample}.R1.trim.fastq.gz",
-    output: 
-        "umi_reads/{sample}.umi.fastq.gz",
-        "umi_reads/{sample}.umi.log.txt",
-    params:
-        sample = lambda wildcards:  wildcards.sample,
-        umitools_path = config["umitools_path"],
-        fastq_file_1 = lambda wildcards: samples_df.loc[wildcards.sample, "fastq_1"],
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
-    shell: """
-        {params.umitools_path} extract \
-            --extract-method=regex \
-            --bc-pattern='.+(?P<discard_1>AACTGTAGGCACCATCAAT){{s<=2}}(?P<umi_1>.{{12}})(?P<discard_2>.+)' \
-            -I {input} \
-            -S umi_reads/{params.sample}.umi.fastq.gz \
-            -L umi_reads/{params.sample}.umi.log.txt
-"""
-
+# define function selecting input FASTQ file for alignment
+def get_alignment_input(wildcards):
+    if USE_UMITOOLS:
+        return f"umi_reads/{wildcards.sample}.umi.fastq.gz"
+    return f"trimming/{wildcards.sample}.R1.trim.fastq.gz"
 
 rule mirbase_alignment:
-    input: 
-        "umi_reads/{sample}.umi.fastq.gz",
+    input:
+        get_alignment_input
     output:
         "mirbase_alignment/{sample}.srt.bam",
         "mirbase_alignment/{sample}.unalign.fastq",
@@ -108,7 +109,7 @@ rule mirbase_alignment:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-        {params.bowtie_path} \
+          {params.bowtie_path} \
             -x {params.bowtie_index} \
             -U {input} -p 12 \
             --norc \
@@ -137,34 +138,18 @@ rule mirbase_alignment:
         rm -rf mirbase_alignment/{params.sample}.sub2.bam 
 """
 
-
-rule mirbase_dedup:
-    input: 
-        "mirbase_alignment/{sample}.srt.bam",
-    output:
-        "mirbase_alignment/{sample}.srt.dedup.bam",
-    params:
-        sample = lambda wildcards:  wildcards.sample,
-        bowtie_path = config["bowtie_path"],
-        bowtie_index = config["bowtie_index"],
-        umitools_path = config["umitools_path"],
-        samtools_path = config["samtools_path"],
-
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
-    shell: """
-    {params.umitools_path} dedup --method=unique -I mirbase_alignment/{params.sample}.srt.bam -S mirbase_alignment/{params.sample}.srt.dedup.bam
-    {params.samtools_path} index mirbase_alignment/{params.sample}.srt.dedup.bam
-        
-"""
+# define function selecting input BAM file for mirbase_stats
+def get_mirbase_stats_input(wildcards):
+    if USE_UMITOOLS:
+        return f"mirbase_alignment/{wildcards.sample}.srt.dedup.bam"
+    return f"mirbase_alignment/{wildcards.sample}.srt.bam"
 
 rule mirbase_stats:
     input: 
-        "mirbase_alignment/{sample}.srt.bam",
-        "mirbase_alignment/{sample}.srt.dedup.bam",
+        get_mirbase_stats_input,
     output:
-        "mirbase_alignment/{sample}.srt.dedup.bam.idxstats",
-        "mirbase_alignment/{sample}.srt.dedup.bam.flagstat"
+        "mirbase_alignment/{sample}.srt.bam.idxstats",
+        "mirbase_alignment/{sample}.srt.bam.flagstat"
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie_path = config["bowtie_path"],
@@ -174,15 +159,15 @@ rule mirbase_stats:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-    {params.samtools_path} idxstats mirbase_alignment/{params.sample}.srt.dedup.bam > mirbase_alignment/{params.sample}.srt.dedup.bam.idxstats
-    {params.samtools_path} flagstat mirbase_alignment/{params.sample}.srt.dedup.bam > mirbase_alignment/{params.sample}.srt.dedup.bam.flagstat
-        
+    {params.samtools_path} idxstats {input} > mirbase_alignment/{params.sample}.srt.bam.idxstats
+    {params.samtools_path} flagstat {input} > mirbase_alignment/{params.sample}.srt.bam.flagstat
+
 """
 
 
 rule mirbase_count:
     input:
-        expand("mirbase_alignment/{sample}.srt.dedup.bam.idxstats", sample=sample_list),
+        expand("mirbase_alignment/{sample}.srt.bam.idxstats", sample=sample_list),
 
     output:
         "mirbase_counts/mirbase.readcounts.tsv",
@@ -193,18 +178,20 @@ rule mirbase_count:
 
     shell: """
     echo -ne mirbase_ID"\t"Length"\t" > mirbase_counts/mirbase.readcounts.tsv
-    echo {input} | tr " " "\t"| sed s/"mirbase_alignment\/"//g| sed s/".srt.dedup.bam.idxstats"//g >> mirbase_counts/mirbase.readcounts.tsv
+    echo {input} | tr " " "\t"| sed s/"mirbase_alignment\/"//g| sed s/".srt.bam.idxstats"//g >> mirbase_counts/mirbase.readcounts.tsv
     paste {input}| awk -f scripts/mirbase_counts.awk >> mirbase_counts/mirbase.readcounts.tsv
 
     # run TPM normalization 
     python scripts/mirbase-readcnt_to_tpm.py mirbase_counts/mirbase.readcounts.tsv
-"""    
+"""
+
 
 rule genome_alignment:
     input: 
         "mirbase_alignment/{sample}.unalign.fastq",
     output:
         "genome_alignment/{sample}.srt.bam",
+        "genome_alignment/{sample}.srt.filt.bam",
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie_path = config["bowtie_path"],
@@ -225,43 +212,30 @@ rule genome_alignment:
             {params.samtools_path} sort -@ 4 - > genome_alignment/{params.sample}.srt.bam
         {params.samtools_path} index genome_alignment/{params.sample}.srt.bam
         
+        # filter by gap presence 
+        {params.samtools_path} view -h genome_alignment/{params.sample}.srt.bam | \
+            awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/) {{print $0}}' | \
+            {params.samtools_path} view -Sb -o genome_alignment/{params.sample}.srt.filt.bam
+        {params.samtools_path} index genome_alignment/{params.sample}.srt.filt.bam
 """
 
 
-rule genome_dedup:
-    input: 
-        "genome_alignment/{sample}.srt.bam",
-    output:
-        "genome_alignment/{sample}.srt.dedup.bam",
-        "genome_alignment/{sample}.srt.dedup.filt.bam",
 
-    params:
-        sample = lambda wildcards:  wildcards.sample,
-        bowtie_path = config["bowtie_path"],
-        bowtie_index = config["bowtie_index"],
-        umitools_path = config["umitools_path"],
-        samtools_path = config["samtools_path"],
-    
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
-    shell: """
-    {params.umitools_path} dedup --method=unique -I genome_alignment/{params.sample}.srt.bam -S genome_alignment/{params.sample}.srt.dedup.bam
-    # filter by length and gap presence 
-    {params.samtools_path} view -h genome_alignment/{params.sample}.srt.dedup.bam | \
-        awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ((length($10) > 16 && length($10) <= 28) && ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/)) {{print $0}}' | \
-        {params.samtools_path} view -Sb -> genome_alignment/{params.sample}.srt.dedup.filt.bam
-    {params.samtools_path} index genome_alignment/{params.sample}.srt.dedup.filt.bam
-"""
+# define function selecting input FASTQ file for alignment
+def get_genome_counts_input(wildcards):
+    if USE_UMITOOLS:
+        return expand("genome_alignment/{sample}.srt.filt.dedup.bam", sample=sample_list)
+    return expand("genome_alignment/{sample}.srt.filt.bam", sample=sample_list)
 
 
 rule genome_counts:
     input:  
-        expand("genome_alignment/{sample}.srt.dedup.filt.bam", sample=sample_list),
-
+        get_genome_counts_input
     output: 
         "genome_counts/featurecounts.readcounts.ann.tsv",
         "genome_counts/featurecounts.readcounts_tpm.tsv",
         "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
+        "genome_counts/featurecounts.readcounts.raw.tsv.summary"
 
     params:
         featurecounts = config['featurecounts_path'],
@@ -285,31 +259,35 @@ rule genome_counts:
 
 rule alignment_metrics_counts:
     input:  
-        expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.srt.filt.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.srt.filt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
+        expand("mirbase_alignment/{sample}.srt.bam", sample=sample_list),
+        expand("mirbase_alignment/{sample}.srt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
+        "genome_counts/featurecounts.readcounts.raw.tsv.summary"
 
     output: 
         "metrics/mirna_genome_alignment_metrics.tsv",
         "metrics/mirna_genome_alignment_metrics.xlsx",
 
     params:
-        gtf = config['annotation_gtf'],
+        use_umi = USE_UMITOOLS,
     conda:
         "env_config/featurecounts.yaml",
-
     resources: cpus="1", maxtime="8:00:00", mem_mb="2gb",
-
     shell: """
         mkdir -p metrics
-        python scripts/qc_metrics.py umi_reads mirbase_alignment genome_alignment > metrics/mirna_genome_alignment_metrics.tsv
-        python scripts/qc_metrics_xlsx.py metrics/mirna_genome_alignment_metrics.tsv metrics/mirna_genome_alignment_metrics.xlsx
+        if [ "{params.use_umi}" = "true" ]; then
+            python scripts/qc_metrics-umi.py umi_reads mirbase_alignment genome_alignment
+        else
+            python scripts/qc_metrics-non-umi.py mirbase_alignment genome_alignment
+        fi
 """
+
 
 rule pca_plots:
     input: "mirbase_counts/mirbase.readcounts.tsv",
 
     output:
-        #"plots/Heatmap_scaled_"+str(num_genes_compared)+"_features.png",
-        # there potentially could be more, but this plot must exist. Make sure -p flag has number at least 2 if specified
         "plots/PCA_1_vs_2.png",
         "plots/PCA_Variance_Bar_Plot.png",
         "plots/Gene_Variance_Plot.png",

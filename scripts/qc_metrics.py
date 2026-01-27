@@ -1,120 +1,214 @@
+#!/usr/bin/env python3
+################################################################################
+# Script:   qc_metrics.py
+# Purpose:  Parse UMI logs, miRBase alignment logs, and genome alignment logs
+#           to generate a combined QC metrics table.
+#
+# Usage (positional arguments):
+#   python qc_metrics.py <umi_reads_dir> <mirbase_alignment_dir> <genome_alignment_dir>
+#
+# Arguments:
+#   umi_reads_dir             Directory containing UMI extraction log files.
+#   mirbase_alignment_dir     Directory containing miRBase alignment log files.
+#   genome_alignment_dir      Directory containing genome alignment log files.
+#
+# Example:
+#   python qc_metrics.py umi_reads mirbase_alignment genome_alignment
+#
+# Output:
+#   metrics/mirna_genome_alignment_metrics.tsv
+#   metrics/mirna_genome_alignment_metrics.xlsx
+#
+# Author: Beatriz Bergamo
 import sys
+from glob import glob
+import pandas as pd
+import subprocess
+from pathlib import Path
 
+def run_samtools_count(bam, include_flag=None, exclude_flag=None):
+    """Run samtools view from Python and return count as int."""
+    cmd = ["samtools", "view", bam, "-c"]
+    if include_flag is not None:
+        cmd.extend(["-f", str(include_flag)])
+    if exclude_flag is not None:
+        cmd.extend(["-F", str(exclude_flag)])
+    result = subprocess.run(cmd, text=True, check=True, capture_output=True)
+    return int(result.stdout.strip())
 
+def parse_log_value(logfile, key):
+    """Return the last integer found in a log file line containing key."""
+    value = None
+    with open(logfile) as f:
+        for line in f:
+            if key in line:
+                value = int(line.strip().split()[-1])
+    return value
 
+def parse_bowtie_log(logfile):
+    """Parse bowtie-style log and return mapped, unmapped, multimap."""
+    reads = None
+    unaligned = None
+    with open(logfile) as f:
+        for line in f:
+            if "reads; of these" in line:
+                reads = int(line.strip().split()[0])
+            if "aligned 0 times" in line:
+                unaligned = int(line.strip().split()[0])
+            if "aligned >1 times" in line:
+                multimap = int(line.strip().split()[0])
+    if reads is None or unaligned is None:
+        raise ValueError(f"Log file {logfile} missing expected fields.")
+    return reads - unaligned, unaligned, multimap
 
-
-
-
-#umi_dir='/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/snakemake/mirna-seq/DAC-miRNAseq-pipeline/git/DAC-miRNAseq-pipeline/umi_reads'
-#mir_mapping_dir='/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/snakemake/mirna-seq/DAC-miRNAseq-pipeline/git/DAC-miRNAseq-pipeline/mirbase_alignment'
-#genome_mapping_dir='/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/snakemake/mirna-seq/DAC-miRNAseq-pipeline/git/DAC-miRNAseq-pipeline/genome_alignment'
-
+# set variables for input directories from parser 
 umi_dir = sys.argv[1]
-mir_mapping_dir = sys.argv[2]
-genome_mapping_dir = sys.argv[3]
+mir_dir = sys.argv[2]
+genome_dir = sys.argv[3]
 
-import glob
-umi_log_paths = glob.glob(umi_dir+'/*.log.txt')
-
-#print (umi_log_paths)
-
-umi_data_dict = {}
+# ------------------------------
+# Parse UMI log files
+# ------------------------------
+umi_data = {}
 sample_list = []
-
-for logfile in umi_log_paths:
-    log = open(logfile,'r')
-
-    sample_id = logfile.split('/')[-1].split('.')[0]
+for logfile in sorted(glob(umi_dir+"/*.log.txt")):
+    sample_id = logfile.split(".")[0].split("/")[-1]
     sample_list.append(sample_id)
-
-    for line in log:
-        if line[0] == '#':
-            continue
-
-        sline = line.strip('\n')
-
-        if 'INFO Input Reads:' in line:
-            reads_before = int(sline.split(' ')[-1])
-        if 'INFO Reads output:' in line:
-            reads_after = int(sline.split(' ')[-1])
-
+    reads_before = parse_log_value(logfile, "INFO Input Reads:")
+    reads_after  = parse_log_value(logfile, "INFO Reads output:")
     reads_removed = reads_before - reads_after
+    umi_data[sample_id] = {
+        "reads_before": reads_before,
+        "reads_removed": reads_removed,
+        "reads_after": reads_after,
+    }
 
-#    print (reads_before, reads_after, reads_removed, sample_id)
+# ------------------------------
+# Parse miRBase mapping logs
+# ------------------------------
+mir_data = {}
+for logfile in sorted(glob(mir_dir+"/*mirbase.log.txt")):
+    sample_id = Path(logfile).name.replace("_mirbase.log.txt", "")
+    mapped, unmapped, multimap = parse_bowtie_log(logfile)
+    mir_data[sample_id] = {"mapped": mapped, "multimap": multimap}
 
-    umi_data_dict[sample_id] = [reads_before, reads_removed, reads_after]
+# ------------------------------
+# Parse genome mapping logs
+# ------------------------------
+genome_data = {}
+for logfile in sorted(glob(genome_dir+"/*genome.log.txt")):
+    sample_id = Path(logfile).name.replace("_genome.log.txt", "")
+    mapped, unmapped, multimap = parse_bowtie_log(logfile)
+    genome_data[sample_id] = {"mapped": mapped, "multimap": multimap}
 
-#print (umi_data_dict)
+# ------------------------------
+# Build metrics DataFrame
+# ------------------------------
+sample_list = sorted(sample_list)
+metrics = pd.DataFrame(index=[
+    "# of reads",
+    "# of UMI-containing reads",
+    "% of UMI-containing reads",
+    "# of reads mapping to mirbase",
+    "% of reads mapping to mirbase",
+    "# of reads multimapping mirbase",
+    "% of reads multimapping mirbase",
+    "# of reads mapping to miRBase after filters",
+    "% of reads mapping to miRBase after filters",
+    "# of reads mapped genome",
+    "% of reads mapped genome",
+    "# of reads multimapping genome",
+    "% of reads multimapping genome",
+    "# of reads after deduplication",
+    "% of reads after deduplication",
+    "# of reads assigned in featurecounts",
+    "% of reads assigned in featurecounts"
+], columns=sample_list)
 
+# ------------------------------
+# Fill UMI rows
+# ------------------------------
+metrics.loc["# of reads"] = [umi_data[s]["reads_before"] for s in sample_list]
+metrics.loc["# of UMI-containing reads"] = [umi_data[s]["reads_after"] for s in sample_list]
+metrics.loc["% of UMI-containing reads"] = (
+    metrics.loc["# of UMI-containing reads"].astype(float)
+    / metrics.loc["# of reads"].astype(float) * 100
+).round(2)
 
-mir_mapping_log_paths = glob.glob(mir_mapping_dir+'/*mirbase.log.txt')
-mirmap_data_dict = {}
+# ------------------------------
+# miRBase counts
+# ------------------------------
+metrics.loc["# of reads mapping to mirbase"] = [mir_data[s]["mapped"] for s in sample_list]
+metrics.loc["% of reads mapping to mirbase"] = (
+    metrics.loc["# of reads mapping to mirbase"].astype(float)
+    / metrics.loc["# of UMI-containing reads"].astype(float) * 100
+).round(2)
 
-for logfile in mir_mapping_log_paths:
-    log = open(logfile,'r')
+metrics.loc["# of reads multimapping mirbase"] = [mir_data[s]["multimap"] for s in sample_list]
+metrics.loc["% of reads multimapping mirbase"] = (
+    metrics.loc["# of reads multimapping mirbase"].astype(float) 
+    / metrics.loc["# of UMI-containing reads"].astype(float) * 100).round(2)
 
-    sample_id = logfile.split('/')[-1].split('.')[0]
+filtered_bams = sorted(glob(mir_dir+"/*.srt.bam"))
+metrics.loc["# of reads mapping to miRBase after length/gap/MAPQ/mismatch filters"] = [
+    run_samtools_count(bam, exclude_flag=4) for bam in filtered_bams
+]
 
-    for line in log:
-        if 'reads; of these' in line:
-            sline = line.strip()
-            reads = int(sline.split(' ')[0])
+# ------------------------------
+# Genome counts
+# ------------------------------
+# genome BAMs 
+genome_bams = sorted(glob(genome_dir+"/*.srt.bam"))
+metrics.loc["# of reads mapped genome"] = [
+    run_samtools_count(bam, exclude_flag=4) for bam in genome_bams
+]
+metrics.loc["# of reads multimapping genome"] = [genome_data[s]["multimap"] for s in sample_list]
+metrics.loc["% of reads multimapping genome"] = (
+    metrics.loc["# of reads multimapping genome"].astype(float) 
+    / metrics.loc["# of UMI-containing reads"].astype(float) * 100).round(2)
+# deduplicated BAMs 
+dedup_bams = sorted(glob(genome_dir+"/*.srt.dedup.bam"))
+metrics.loc["# of reads after deduplication"] = [
+    run_samtools_count(bam, exclude_flag=4) for bam in dedup_bams
+]
 
-        if 'aligned 0 times' in line:
-            sline = line.strip()
-            unaligned = int(sline.split(' ')[0])
+# ------------------------------
+# FeatureCounts assignment
+# ------------------------------
+# load featurecounts summary file 
+fc = pd.read_csv("genome_counts/featurecounts.readcounts.raw.tsv.summary",
+                 sep="\t", index_col=0)
+# assign valus to metrics 
+metrics.loc["# of reads assigned in featurecounts"] = fc.loc["Assigned"].tolist()
+metrics.loc["% of reads assigned in featurecounts"] = (
+    metrics.loc["# of reads assigned in featurecounts"].astype(float)
+    / metrics.loc["# of UMI-containing reads"].astype(float) * 100
+).round(2)
 
-    mirmap_data_dict[sample_id] = [reads-unaligned, unaligned]
+# ------------------------------
+# additional calculations 
+# ------------------------------
+# % of reads mapped genome
+metrics.loc["% of reads mapped genome"] =  (
+    metrics.loc["# of reads mapped genome"].astype(float)
+    / metrics.loc["# of UMI-containing reads"].astype(float) * 100
+).round(2)
+# % of reads after deduplication
+metrics.loc["% of reads after deduplication"] =  (
+    metrics.loc["# of reads after deduplication"].astype(float)
+    / metrics.loc["# of UMI-containing reads"].astype(float) * 100
+).round(2)
+# % of reads after filter
+metrics.loc["% of reads mapping to miRBase after length/gap/MAPQ/mismatch filters"] =  (
+    metrics.loc["# of reads mapping to miRBase after length/gap/MAPQ/mismatch filters"].astype(float)
+    / metrics.loc["# of UMI-containing reads"].astype(float) * 100
+).round(2)
 
-#print (mirmap_data_dict)
-
-
-
-genome_mapping_log_paths = glob.glob(genome_mapping_dir+'/*genome.log.txt')
-genome_data_dict = {}
-
-for logfile in genome_mapping_log_paths:
-    log = open(logfile,'r')
-
-    sample_id = logfile.split('/')[-1].split('.')[0].split('_')[:-1]
-    sample_id = '_'.join(sample_id)
-
-    for line in log:
-        if 'reads; of these' in line:
-            sline = line.strip()
-            reads = int(sline.split(' ')[0])
-
-        if 'aligned 0 times' in line:
-            sline = line.strip()
-            unaligned = int(sline.split(' ')[0])
-            
-
-    genome_data_dict[sample_id] = [reads-unaligned, unaligned]
-
-#print (genome_data_dict)
-
-
-
-#import pandas as pd
-
-
-#df_umi = pd.DataFrame.from_dict(umi_data_dict)
-#print(df_umi)
-
-sample_list.sort()
-print ('\t'.join(['Metric'] + sample_list))
-print ('\t'.join(['# of reads'] + [str(umi_data_dict[x][0]) for x in sample_list]))
-print ('\t'.join(['# of reads missing UMI'] + [str(umi_data_dict[x][1]) for x in sample_list]))
-print ('\t'.join(['% of reads missing UMI'] + [str(round((umi_data_dict[x][1]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
-print ('\t'.join(['# of UMI-containing reads'] + [str(umi_data_dict[x][2]) for x in sample_list]))
-print ('\t'.join(['% of UMI-containing reads'] + [str(round((umi_data_dict[x][2]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
-print ('\t'.join(['# of reads mapping to mirna'] + [str(mirmap_data_dict[x][0]) for x in sample_list]))
-print ('\t'.join(['% of reads mapping to mirna'] + [str(round((mirmap_data_dict[x][0]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
-print ('\t'.join(['# of reads mapping to genome'] + [str(genome_data_dict[x][0]) for x in sample_list]))
-print ('\t'.join(['% of reads mapping to genome'] + [str(round((genome_data_dict[x][0]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
-print ('\t'.join(['# of reads unaligned'] + [str(genome_data_dict[x][1]) for x in sample_list]))
-print ('\t'.join(['% of reads unaligned'] + [str(round((genome_data_dict[x][1]/umi_data_dict[x][0])*100, 2)) for x in sample_list]))
+# ------------------------------
+# write output files 
+# ------------------------------
+metrics.to_csv( "metrics/mirna_genome_alignment_metrics.tsv", sep="\t", index=True)
+metrics.to_excel("metrics/mirna_genome_alignment_metrics.xlsx", index=True)
 
 
 
