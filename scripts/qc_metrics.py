@@ -5,7 +5,7 @@
 #           to generate a combined QC metrics table.
 #
 # Usage (positional arguments):
-#   python qc_metrics.py <umi_reads_dir> <mirbase_alignment_dir> <genome_alignment_dir>
+#   python qc_metrics.py <umi_reads_dir> <mirbase_alignments_dir> <genome_alignment_dir>
 #
 # Arguments:
 #   umi_reads_dir             Directory containing UMI extraction log files.
@@ -45,34 +45,95 @@ def parse_log_value(logfile, key):
                 value = int(line.strip().split()[-1])
     return value
 
-def parse_bowtie_log(logfile):
-    """Parse bowtie-style log and return mapped, unmapped, multimap."""
-    reads = None
-    unaligned = None
+def parse_bowtie1_log(logfile):
+    """
+    Parse Bowtie1 log file (e.g. *.hairpin.bowtie1.log) and return:
+        total_reads, aligned_reads, unaligned_reads
+
+    Expected Bowtie1 summary lines look like:
+        # reads processed: 9249003
+        # reads with at least one alignment: 1402 (0.02%)
+        # reads that failed to align: 9247601 (99.98%)
+        Reported 2849 alignments
+        Time searching: 00:03:36
+        Overall time: 00:03:36
+    """
+    total_reads = None
+    aligned_reads = None
+    unaligned_reads = None
+
     with open(logfile) as f:
         for line in f:
-            if "reads; of these" in line:
-                reads = int(line.strip().split()[0])
-            if "aligned 0 times" in line:
-                unaligned = int(line.strip().split()[0])
-            if "aligned >1 times" in line:
-                multimap = int(line.strip().split()[0])
-    if reads is None or unaligned is None:
-        raise ValueError(f"Log file {logfile} missing expected fields.")
-    return reads - unaligned, unaligned, multimap
+            line = line.strip()
+
+            if line.startswith("# reads processed:"):
+                total_reads = int(line.split(":", 1)[1].strip().split()[0])
+            elif line.startswith("# reads with at least one alignment:"):
+                aligned_reads = int(line.split(":", 1)[1].strip().split()[0])
+            elif line.startswith("# reads that failed to align:"):
+                unaligned_reads = int(line.split(":", 1)[1].strip().split()[0])
+
+    if total_reads is None or aligned_reads is None or unaligned_reads is None:
+        raise ValueError(f"Bowtie1 log file {logfile} missing expected summary fields.")
+
+    return total_reads, aligned_reads, unaligned_reads
+
+
+def parse_bowtie2_log(logfile):
+    """
+    Parse Bowtie2-style log file (e.g. *_mirbase.log.txt, *_genome.log.txt) and return:
+        total_reads, aligned_reads, unaligned_reads, multimapped_reads
+
+    Expected Bowtie2 summary lines look like:
+        9247601 reads; of these:
+          9247601 (100.00%) were unpaired; of these:
+            8958899 (96.88%) aligned 0 times
+            19851 (0.21%) aligned exactly 1 time
+            268851 (2.91%) aligned >1 times
+        3.12% overall alignment rate
+    """
+    total_reads = None
+    aligned_0 = None
+    aligned_1 = None
+    aligned_gt1 = None
+
+    with open(logfile) as f:
+        for line in f:
+            line = line.strip()
+
+            if line.endswith("reads; of these:"):
+                total_reads = int(line.split()[0])
+            elif "aligned 0 times" in line:
+                aligned_0 = int(line.split()[0])
+            elif "aligned exactly 1 time" in line:
+                aligned_1 = int(line.split()[0])
+            elif "aligned >1 times" in line:
+                aligned_gt1 = int(line.split()[0])
+
+    if None in (total_reads, aligned_0, aligned_1, aligned_gt1):
+        raise ValueError(f"Bowtie2 log file {logfile} missing expected summary fields.")
+
+    aligned_reads = aligned_1 + aligned_gt1
+    unaligned_reads = aligned_0
+    multimapped_reads = aligned_gt1
+
+    return total_reads, aligned_reads, unaligned_reads, multimapped_reads
 
 # set variables for input directories from parser 
-umi_dir = sys.argv[1]
-mir_dir = sys.argv[2]
-genome_dir = sys.argv[3]
+umi_dir = Path(sys.argv[1])
+mir_dir = Path(sys.argv[2])      # parent directory, e.g. mirbase_alignments
+genome_dir = Path(sys.argv[3])
+
+mir_mature_dir = mir_dir / "mature"
+mir_hairpin_dir = mir_dir / "hairpin"
 
 # ------------------------------
 # Parse UMI log files
 # ------------------------------
 umi_data = {}
 sample_list = []
-for logfile in sorted(glob(umi_dir+"/*.log.txt")):
-    sample_id = logfile.split(".")[0].split("/")[-1]
+for logfile in sorted(glob(str(umi_dir / "*.log.txt"))):
+    sample_id = Path(logfile).name.split(".")[0]
     sample_list.append(sample_id)
     reads_before = parse_log_value(logfile, "INFO Input Reads:")
     reads_after  = parse_log_value(logfile, "INFO Reads output:")
@@ -84,21 +145,29 @@ for logfile in sorted(glob(umi_dir+"/*.log.txt")):
     }
 
 # ------------------------------
-# Parse miRBase mapping logs
+# Parse miRBase mapping logs (mature and hairpin)
 # ------------------------------
 mir_data = {}
-for logfile in sorted(glob(mir_dir+"/*mirbase.log.txt")):
+for logfile in sorted(glob(str(mir_mature_dir / "*mirbase.log.txt"))):
     sample_id = Path(logfile).name.replace("_mirbase.log.txt", "")
-    mapped, unmapped, multimap = parse_bowtie_log(logfile)
-    mir_data[sample_id] = {"mapped": mapped, "multimap": multimap}
+    _, mapped, _, multimap = parse_bowtie2_log(logfile)
+    if sample_id not in mir_data:
+        mir_data[sample_id] = {}
+    mir_data[sample_id].update({"mapped_mature": mapped, "multimap_mature": multimap})
+
+hairpin_data = {}
+for logfile in sorted(glob(str(mir_hairpin_dir / "*.hairpin.bowtie1.log"))):
+    sample_id = Path(logfile).name.replace(".hairpin.bowtie1.log", "")
+    reads, mapped, unmapped = parse_bowtie1_log(logfile)
+    hairpin_data[sample_id] = {"reads": reads, "mapped": mapped, "unaligned": unmapped}
 
 # ------------------------------
 # Parse genome mapping logs
 # ------------------------------
 genome_data = {}
-for logfile in sorted(glob(genome_dir+"/*genome.log.txt")):
+for logfile in sorted(glob(str(genome_dir / "*genome.log.txt"))):
     sample_id = Path(logfile).name.replace("_genome.log.txt", "")
-    mapped, unmapped, multimap = parse_bowtie_log(logfile)
+    _, mapped, _, multimap = parse_bowtie2_log(logfile)
     genome_data[sample_id] = {"mapped": mapped, "multimap": multimap}
 
 # ------------------------------
@@ -109,12 +178,14 @@ metrics = pd.DataFrame(index=[
     "# of reads",
     "# of UMI-containing reads",
     "% of UMI-containing reads",
-    "# of reads mapping to mirbase",
-    "% of reads mapping to mirbase",
-    "# of reads multimapping mirbase",
-    "% of reads multimapping mirbase",
-    "# of reads mapping to miRBase after filters",
-    "% of reads mapping to miRBase after filters",
+    "# of reads mapping to mirbase (mature)",
+    "% of reads mapping to mirbase (mature)",
+    "# of reads multimapping mirbase (mature)",
+    "% of reads multimapping mirbase (mature)",
+    "# of reads mapping to miRBase after filters (mature)",
+    "% of reads mapping to miRBase after filters (mature)",
+    "# of reads mapping to mirbase (hairpin)",
+    "% of reads mapping to mirbase (hairpin)",
     "# of reads mapped genome",
     "% of reads mapped genome",
     "# of reads multimapping genome",
@@ -136,29 +207,38 @@ metrics.loc["% of UMI-containing reads"] = (
 ).round(2)
 
 # ------------------------------
-# miRBase counts
+# miRBase counts (mature)
 # ------------------------------
-metrics.loc["# of reads mapping to mirbase"] = [mir_data[s]["mapped"] for s in sample_list]
-metrics.loc["% of reads mapping to mirbase"] = (
-    metrics.loc["# of reads mapping to mirbase"].astype(float)
+metrics.loc["# of reads mapping to mirbase (mature)"] = [mir_data[s]["mapped_mature"] for s in sample_list]
+metrics.loc["% of reads mapping to mirbase (mature)"] = (
+    metrics.loc["# of reads mapping to mirbase (mature)"].astype(float)
     / metrics.loc["# of UMI-containing reads"].astype(float) * 100
 ).round(2)
 
-metrics.loc["# of reads multimapping mirbase"] = [mir_data[s]["multimap"] for s in sample_list]
-metrics.loc["% of reads multimapping mirbase"] = (
-    metrics.loc["# of reads multimapping mirbase"].astype(float) 
+metrics.loc["# of reads multimapping mirbase (mature)"] = [mir_data[s]["multimap_mature"] for s in sample_list]
+metrics.loc["% of reads multimapping mirbase (mature)"] = (
+    metrics.loc["# of reads multimapping mirbase (mature)"].astype(float) 
     / metrics.loc["# of UMI-containing reads"].astype(float) * 100).round(2)
 
-filtered_bams = sorted(glob(mir_dir+"/*.srt.bam"))
-metrics.loc["# of reads mapping to miRBase after length/gap/MAPQ/mismatch filters"] = [
+filtered_bams = sorted(glob(str(mir_mature_dir / "*.srt.bam")))
+metrics.loc["# of reads mapping to miRBase after length/gap/MAPQ/mismatch filters (mature)"] = [
     run_samtools_count(bam, exclude_flag=4) for bam in filtered_bams
 ]
+
+# ------------------------------
+# miRBase counts (hairpin)
+# ------------------------------
+metrics.loc["# of reads mapping to mirbase (hairpin)"] = [hairpin_data[s]["mapped"] for s in sample_list]
+metrics.loc["% of reads mapping to mirbase (hairpin)"] = (
+    metrics.loc["# of reads mapping to mirbase (hairpin)"].astype(float)
+    / metrics.loc["# of UMI-containing reads"].astype(float) * 100
+).round(2)
 
 # ------------------------------
 # Genome counts
 # ------------------------------
 # genome BAMs 
-genome_bams = sorted(glob(genome_dir+"/*.srt.bam"))
+genome_bams = sorted(glob(str(genome_dir / "*.srt.bam")))
 metrics.loc["# of reads mapped genome"] = [
     run_samtools_count(bam, exclude_flag=4) for bam in genome_bams
 ]
@@ -167,7 +247,7 @@ metrics.loc["% of reads multimapping genome"] = (
     metrics.loc["# of reads multimapping genome"].astype(float) 
     / metrics.loc["# of UMI-containing reads"].astype(float) * 100).round(2)
 # deduplicated BAMs 
-dedup_bams = sorted(glob(genome_dir+"/*.srt.dedup.bam"))
+dedup_bams = sorted(glob(str(genome_dir / "*.srt.dedup.bam")))
 metrics.loc["# of reads after deduplication"] = [
     run_samtools_count(bam, exclude_flag=4) for bam in dedup_bams
 ]
@@ -198,9 +278,9 @@ metrics.loc["% of reads after deduplication"] =  (
     metrics.loc["# of reads after deduplication"].astype(float)
     / metrics.loc["# of UMI-containing reads"].astype(float) * 100
 ).round(2)
-# % of reads after filter
-metrics.loc["% of reads mapping to miRBase after length/gap/MAPQ/mismatch filters"] =  (
-    metrics.loc["# of reads mapping to miRBase after length/gap/MAPQ/mismatch filters"].astype(float)
+# % of reads after filter (mature)
+metrics.loc["% of reads mapping to miRBase after length/gap/MAPQ/mismatch filters (mature)"] =  (
+    metrics.loc["# of reads mapping to miRBase after length/gap/MAPQ/mismatch filters (mature)"].astype(float)
     / metrics.loc["# of UMI-containing reads"].astype(float) * 100
 ).round(2)
 

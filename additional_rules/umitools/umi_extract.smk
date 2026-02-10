@@ -25,24 +25,44 @@ rule umitools:
             -L umi_reads/{params.sample}.umi.log.txt
 """    
 
-
+#----- Rule to deduplicate
 rule mirbase_dedup:
     input: 
-        "mirbase_alignment/{sample}.srt.bam",
+        mature = "mirbase_alignment/mature/{sample}.mature.srt.bam",
+        hairpin = "mirbase_alignment/hairpin/{sample}.hairpin.srt.bam"
     output:
-        "mirbase_alignment/{sample}.srt.dedup.bam",
+        mature_dedup = "mirbase_alignment/mature/{sample}.mature.srt.dedup.bam",
+        hairpin_dedup = "mirbase_alignment/hairpin/{sample}.hairpin.srt.dedup.bam"
     params:
         sample = lambda wildcards:  wildcards.sample,
-        bowtie_path = config["bowtie_path"],
-        bowtie_index = config["bowtie_index"],
+        bowtie1_path = config["bowtie1_path"],
+        bowtie1_index = config["bowtie1_index"],
         umitools_path = config["umitools_path"],
         samtools_path = config["samtools_path"],
 
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
 
     shell: """
-    {params.umitools_path} dedup --method=unique -I mirbase_alignment/{params.sample}.srt.bam -S mirbase_alignment/{params.sample}.srt.dedup.bam
-    {params.samtools_path} index mirbase_alignment/{params.sample}.srt.dedup.bam
+
+    #----- Deduplicate mature and index
+    {params.umitools_path} \
+        dedup \
+        --method=unique \
+        -I {input.mature} \
+        -S {output.hairpin_dedup}
+
+    {params.samtools_path} \
+        index mirbase_alignment/mature/{sample}.mature.srt.dedup.bam
+
+    #----- Deduplicate hairpin and index
+    {params.umitools_path} \
+        dedup \
+        --method=unique \
+        -I {input.hairpin} \
+        -S {output.hairpin_dedup}
+
+    {params.samtools_path} \
+        index mirbase_alignment/hairpin/{sample}.hairpin.srt.dedup.bam
         
 """
 

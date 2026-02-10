@@ -1,7 +1,7 @@
 ###~~~~~~ general settings ~~~~~~###
 
 # sample meta data file
-sample_tsv: "sample_fastq_list.txt"
+sample_csv: "sample_fastq_list.csv"
 
 ############################################
 # general setting 
@@ -11,8 +11,8 @@ layout: "single"
 use_spikeins: false
 use_umitools: false
 adapter_3prime: "AGATCGGAAGAGCACACGTCTGAACTCCAGTCA"
-nextseq_trim: "--nextseq-trim=30" # cutadapt flag and value for NextSeq quality trimming; set to "" to disable
-
+#nextseq_trim: "--nextseq-trim=30" # cutadapt flag and value for NextSeq quality trimming; set to "" to disable
+nextseq_trim: ""
 ############################################
 # spike-in info
 sample_with_spikein_finalvolume: 5 # if using NextFLEX, need to change this value
@@ -24,7 +24,8 @@ spikein_reference_core: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/251106_miR
 ############################################# 
 umitools_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/umi-tools/umi_tools"
 samtools_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/samtools/samtools-1.11/samtools"
-bowtie_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/bowtie2/bowtie2-2.4.4-linux-x86_64/bowtie2"
+bowtie1_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/bowtie/bowtie"
+bowtie2_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/bowtie2/bowtie2-2.4.4-linux-x86_64/bowtie2"
 multiqc_path: "multiqc"
 python_mirna_venv: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/mirna-python-venv/bin/python3"
 featurecounts_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/featurecounts/subread-2.0.1-Linux-x86_64/bin/featureCounts"
@@ -34,9 +35,18 @@ featurecounts_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/feat
 ############################################# 
 
 ##### HUMAN ####
-bowtie_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/mirbase-human-hg38-padded/mirbase-human-hg38-padded"
-bowtie_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/hg38-bowtie2-index/hg38-bowtie2-index"
-annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/ensembl-annotations/Homo_sapiens.GRCh38.97.gtf"
+#bowtie_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/mirbase-human-hg38-padded/mirbase-human-hg38-padded"
+#bowtie_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/hg38-bowtie2-index/hg38-bowtie2-index"
+#annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/ensembl-annotations/Homo_sapiens.GRCh38.97.gtf"
+
+##### Zebrafish ####
+bowtie1_mature_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/kasper/miRNA_development/aligner_indices/bowtie1/drer_mature/mirbase_mature_drerio"
+bowtie1_hairpin_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/kasper/miRNA_development/aligner_indices/bowtie1/hairpins/hairpins"
+bowtie2_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/hg38-bowtie2-index/hg38-bowtie2-index"
+annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/D_rerio/V4.3.2.validated.gtf"
+hairpin_gff: "dre.gff3"
+hairpin_fa: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/kasper/miRNA_development/dre_hairpin.fa"
+sps: "dre"
 
 #### UTILITIES ####
 pca_plot_script: "scripts/pca_plotting.py"

@@ -1,0 +1,13 @@
+.snakemake/*
+export/*
+genome_alignment/*
+genome_counts/*
+metrics/*
+mirbase_alignment/*
+mirbase_counts/*
+mirtop/*
+multiqc_data/*
+plots/*
+trimming/*
+dre.gff3
+multiqc_report.html
