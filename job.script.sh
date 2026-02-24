@@ -7,9 +7,12 @@
 #SBATCH --mail-user=f007qps@dartmouth.edu
 #SBATCH --time=60:00:00
 #SBATCH --mail-type=FAIL
+#SBATCH --output=mirna_%j.log
 
 source /optnfs/common/miniconda3/etc/profile.d/conda.sh
 conda activate /dartfs/rc/nosnapshots/G/GMBSR_refs/envs/snakemake
+
+mkdir -p job_logs
 
 snakemake -s \
     Snakefile \

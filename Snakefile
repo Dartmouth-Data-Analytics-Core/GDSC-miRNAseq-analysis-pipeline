@@ -50,7 +50,7 @@ rule all:
         expand("mirbase_alignment/hairpin/{sample}.hairpin.srt.bam.flagstat", sample=sample_list),
 
         #== mirtop
-        #expand("mirtop/{sample}.hairpin.srt.gff", sample=sample_list),
+        expand("mirtop/{sample}.hairpin.srt.gff", sample=sample_list),
 
         #== Genome alignment and metrics outputs
         expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
@@ -257,7 +257,7 @@ rule mature_mirbase_stats:
 """
 
 
-"""
+
 #----- Rule to run miRtop
 rule miRtop:
     input:
@@ -275,6 +275,9 @@ rule miRtop:
         maxtime="2:00:00", 
         mem_mb="60gb",
     shell: """
+
+        #----- Make subdirectory
+        mkdir -p mirtop/counts
     
         #----- Run miRtop GFF
         mirtop gff \
@@ -284,10 +287,15 @@ rule miRtop:
             --gtf {params.hairpin_gff} \
             -o mirtop \
             {input} 
-
-
+        
+        #----- Run miRtop counts
+        mirtop counts \
+            -o mirtop/counts \
+            --hairpin {params.hairpin_fa} \
+            --gff mirtop/{params.sample}.hairpin.srt.gff \
+            --gtf {params.hairpin_gff}
 """
-"""
+
 
 #----- Rule to count miRNAs (mature only)
 rule mirbase_count:
