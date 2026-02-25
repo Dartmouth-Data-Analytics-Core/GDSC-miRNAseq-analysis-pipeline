@@ -4,6 +4,7 @@
 
 #----- sample meta data file
 sample_csv: "sample_fastq_list.csv"
+sps: "dre"
 
 #----- sequencing config
 layout: "single"      # One of "single" or "paired"
@@ -32,22 +33,14 @@ python_mirna_venv: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tool
 featurecounts_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/featurecounts/subread-2.0.1-Linux-x86_64/bin/featureCounts"
 
 #-------------------------------------------#
-# Reference File Paths
+# Zebrafish Reference File Paths
 #-------------------------------------------#
-
-##### HUMAN ####
-#bowtie_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/mirbase-human-hg38-padded/mirbase-human-hg38-padded"
-#bowtie_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/hg38-bowtie2-index/hg38-bowtie2-index"
-#annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/ensembl-annotations/Homo_sapiens.GRCh38.97.gtf"
-
-#----- Zebrafish 
-bowtie1_mature_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/kasper/miRNA_development/aligner_indices/bowtie1/drer_mature/mirbase_mature_drerio"
-bowtie1_hairpin_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/kasper/miRNA_development/aligner_indices/bowtie1/hairpins/hairpins"
-bowtie2_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/hg38-bowtie2-index/hg38-bowtie2-index"
+bowtie1_mature_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/dre/dre_mature_index/mirbase_mature_drerio"
+bowtie1_hairpin_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/dre/dre_hairpin_index/hairpins"
+bowtie2_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/D_rerio/bowtie2-index-lawson/danRer11"
 annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/D_rerio/V4.3.2.validated.gtf"
-hairpin_gff: "dre.gff3"
-hairpin_fa: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/kasper/miRNA_development/dre_hairpin.fa"
-sps: "dre"
+hairpin_gff: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/dre/dre.gff3"
+hairpin_fa: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/dre/dre_mirbase_hairpins.fa"
 
 #-------------------------------------------#
 # Utilities
