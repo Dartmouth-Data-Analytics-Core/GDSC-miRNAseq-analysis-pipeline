@@ -54,7 +54,7 @@ rule all:
         expand("mirbase_alignment/hairpin/{sample}.hairpin.srt.bam.flagstat", sample=sample_list),
 
         #== mirtop
-        expand("mirtop/{sample}.hairpin.srt.gff", sample=sample_list),
+        expand("mirtop/{sample}.hairpin.gff", sample=sample_list),
 
         #== Genome alignment and metrics outputs
         expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
@@ -334,7 +334,7 @@ rule miRtop:
     input:
         collapsed_aln = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam"
     output:
-        mirtop_gff = "mirtop/{sample}.hairpin.srt.gff"
+        mirtop_gff = "mirtop/{sample}.hairpin.gff"
     conda: "env_config/mirtop.yaml"
     params:
         sample = lambda wildcards:  wildcards.sample,
@@ -347,9 +347,6 @@ rule miRtop:
         mem_mb="60gb",
     shell: """
 
-        #----- Make subdirectory
-        mkdir -p mirtop/counts mirtop/stats
-    
         #----- Run miRtop GFF
         mirtop gff \
             --add-extra \
@@ -357,18 +354,19 @@ rule miRtop:
             --hairpin {params.hairpin_fa} \
             --gtf {params.hairpin_gff} \
             -o mirtop \
-            {input.collapsed_aln} 
+            {input.collapsed_aln} &&
+        mv mirtop/{params.sample}.seqcluster.hairpin.aln.srt.gff mirtop/{params.sample}.hairpin.gff
         
         #----- Run miRtop counts
         mirtop counts \
             -o mirtop \
             --hairpin {params.hairpin_fa} \
-            --gff mirtop/{params.sample}.hairpin.srt.gff \
+            --gff {output.mirtop_gff} \
             --gtf {params.hairpin_gff}
 
         #----- Run miRtop stats
         #mirtop stats \
-        #    {params.sample}.hairpin.srt.gff \
+        #    {params.sample}.hairpin.gff \
         #    -o mirtop/stats \
         #    
 """
