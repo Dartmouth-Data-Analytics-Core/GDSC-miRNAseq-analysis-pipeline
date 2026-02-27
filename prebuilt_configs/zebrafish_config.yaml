@@ -28,6 +28,7 @@ umitools_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/um
 samtools_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/samtools/samtools-1.11/samtools"
 bowtie1_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/bowtie/bowtie"
 bowtie2_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/bowtie2/bowtie2-2.4.4-linux-x86_64/bowtie2"
+seqcluster_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/seqcluster/seqcluster"
 multiqc_path: "multiqc"
 python_mirna_venv: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/mirna-python-venv/bin/python3"
 featurecounts_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/featurecounts/subread-2.0.1-Linux-x86_64/bin/featureCounts"
