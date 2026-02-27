@@ -3,6 +3,9 @@
 #
 # Pipeline for the quantification of miRNAs, isomiRs, and other small RNAs
 #
+# TO DO
+# - CLEAN ZEBRAFISH HAIRPIN FASTA AND REBUILD BOWTIE1 INDEX FOR MIRTOP (DONE, Friday 2/27)
+# - GET SEQCLUSTER TO WORK 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import pandas as pd
 
@@ -32,6 +35,7 @@ rule all:
         expand("trimming/{sample}.R1.trim.fastq.gz", sample=sample_list),
         expand("trimming/{sample}.cutadapt.report", sample=sample_list),    
         expand("umi_reads/{sample}.umi.fastq.gz", sample=sample_list) if USE_UMITOOLS else [],
+        expand("collapsed/{sample}.seqcluster.fastq.gz", sample=sample_list),
 
         #== mirbase mature alignment and metrics and hairpin alignment and metrics outputs
         expand("mirbase_alignment/mature/{sample}.mature.srt.bam", sample=sample_list),
@@ -116,6 +120,34 @@ def get_alignment_input(wildcards):
     if USE_UMITOOLS:
         return f"umi_reads/{wildcards.sample}.umi.fastq.gz"
     return f"trimming/{wildcards.sample}.R1.trim.fastq.gz"
+
+#----- Rule to collapse reads with seqcluster
+rule seqcluster:
+    input: get_alignment_input
+    output: 
+        collapsed = "collapsed/{sample}.seqcluster.fastq.gz"
+    params:
+        sample = lambda wildcards: wildcards.sample,
+        seqcluster_path = config["seqcluster_path"]
+    conda: "env_config/seqcluster.yaml"
+    threads: 8
+    resources:
+        maxtime="2:00:00",
+        mem_mb="60gb"
+    shell: """
+    
+        #----- Run seqcluster to collapse reads
+        seqcluster \
+            collapse \
+            -m 1 \
+            --min_size 15 \
+            -f {input} \
+            -o collapsed
+        
+        mv collapsed/{params.sample}.R1.trim_trimmed.fastq collapsed/{params.sample}.seqcluster.fastq
+        gzip collapsed/{params.sample}.seqcluster.fastq
+    
+    """
 
 #----- Rule to align reads to non-padded mature miRNA reference
 rule mirbase_mature_aln:
@@ -277,7 +309,7 @@ rule miRtop:
     shell: """
 
         #----- Make subdirectory
-        mkdir -p mirtop/counts
+        mkdir -p mirtop/counts mirtop/stats
     
         #----- Run miRtop GFF
         mirtop gff \
@@ -290,10 +322,16 @@ rule miRtop:
         
         #----- Run miRtop counts
         mirtop counts \
-            -o mirtop/counts \
+            -o mirtop \
             --hairpin {params.hairpin_fa} \
             --gff mirtop/{params.sample}.hairpin.srt.gff \
             --gtf {params.hairpin_gff}
+
+        #----- Run miRtop stats
+        #mirtop stats \
+        #    {params.sample}.hairpin.srt.gff \
+        #    -o mirtop/stats \
+        #    
 """
 
 

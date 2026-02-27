@@ -12,12 +12,13 @@
 source /optnfs/common/miniconda3/etc/profile.d/conda.sh
 conda activate /dartfs/rc/nosnapshots/G/GMBSR_refs/envs/snakemake
 
-mkdir -p job_logs
+mkdir -p logs
 
 snakemake -s \
     Snakefile \
+    --configfile prebuilt_configs/zebrafish_config.yaml \
     --profile cluster_profile \
     -T 2 \
     --use-conda \
-    --conda-frontend conda \
+    --conda-frontend mamba \
     --conda-prefix /dartfs/rc/nosnapshots/G/GMBSR_refs/envs/miRNAseq
