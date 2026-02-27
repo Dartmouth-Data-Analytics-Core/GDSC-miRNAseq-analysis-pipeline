@@ -20,5 +20,5 @@ snakemake -s \
     --profile cluster_profile \
     -T 2 \
     --use-conda \
-    --conda-frontend mamba \
+    --conda-frontend conda \
     --conda-prefix /dartfs/rc/nosnapshots/G/GMBSR_refs/envs/miRNAseq
