@@ -4,8 +4,7 @@
 # Pipeline for the quantification of miRNAs, isomiRs, and other small RNAs
 #
 # TO DO
-# - CLEAN ZEBRAFISH HAIRPIN FASTA AND REBUILD BOWTIE1 INDEX FOR MIRTOP (DONE, Friday 2/27)
-# - GET SEQCLUSTER TO WORK 
+# - Add script to collapse isomirs down to their family to provide a decent proxy for mature counts
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import pandas as pd
 
@@ -36,6 +35,7 @@ rule all:
         expand("trimming/{sample}.cutadapt.report", sample=sample_list),    
         expand("umi_reads/{sample}.umi.fastq.gz", sample=sample_list) if USE_UMITOOLS else [],
         expand("collapsed/{sample}.seqcluster.fastq.gz", sample=sample_list),
+        expand("collapsed/{sample}.seqcluster.hairpin.aln.srt.bam", sample=sample_list),
 
         #== mirbase mature alignment and metrics and hairpin alignment and metrics outputs
         expand("mirbase_alignment/mature/{sample}.mature.srt.bam", sample=sample_list),
@@ -149,6 +149,45 @@ rule seqcluster:
     
     """
 
+#----- Rule to align collapsed reads to hairpins
+rule collapsed_hairpin_aln:
+    input:
+        seqcluster_fastq = "collapsed/{sample}.seqcluster.fastq.gz"
+    output:
+        collapsed_aln = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam"
+    params:
+        sample = lambda wildcards:  wildcards.sample,
+        bowtie1_path = config["bowtie1_path"],
+        hairpin_index = config["bowtie1_hairpin_index"],
+        samtools_path = config["samtools_path"]
+    threads: 8
+    resources:
+        maxtime="2:00:00",
+        mem_mb="60gb"
+    shell: """
+    
+        #----- Align collapsed reads to hairpins
+        {params.bowtie1_path} \
+            --threads {threads} \
+            --sam \
+            -x {params.hairpin_index} \
+            -q \
+            --un collapsed/{params.sample}.unmapped.fastq \
+            -t \
+            -k 50 \
+            --best \
+            --strata \
+            -e 99999 \
+            --chunkmbs 2048 \
+            {input.seqcluster_fastq} \
+            2>| >(tee collapsed/{params.sample}_aln.out >&2) \
+            | {params.samtools_path} view -@ 24 -bS - \
+            | {params.samtools_path} sort -@ 24 -o {output.collapsed_aln}
+
+        {params.samtools_path} index {output.collapsed_aln}
+    
+    """
+
 #----- Rule to align reads to non-padded mature miRNA reference
 rule mirbase_mature_aln:
     input:
@@ -160,7 +199,7 @@ rule mirbase_mature_aln:
         sample = lambda wildcards:  wildcards.sample,
         bowtie1_path = config["bowtie1_path"],
         bowtie1_index = config["bowtie1_mature_index"],
-        samtools_path = config["samtools_path"],
+        samtools_path = config["samtools_path"]
     threads: 8
     resources: 
         maxtime="2:00:00", 
@@ -293,7 +332,7 @@ rule mature_mirbase_stats:
 #----- Rule to run miRtop
 rule miRtop:
     input:
-        get_mirbase_hairpin_stats_input
+        collapsed_aln = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam"
     output:
         mirtop_gff = "mirtop/{sample}.hairpin.srt.gff"
     conda: "env_config/mirtop.yaml"
@@ -318,7 +357,7 @@ rule miRtop:
             --hairpin {params.hairpin_fa} \
             --gtf {params.hairpin_gff} \
             -o mirtop \
-            {input} 
+            {input.collapsed_aln} 
         
         #----- Run miRtop counts
         mirtop counts \
