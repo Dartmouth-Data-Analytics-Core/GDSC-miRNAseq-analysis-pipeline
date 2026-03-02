@@ -5,7 +5,12 @@
 #
 # TO DO
 # - Add script to collapse isomirs down to their family to provide a decent proxy for mature counts
-# - Better linting and logging directives
+# - Add collapsed isomiR counts to mature counts for total counts
+# - Add in filtering:
+    # - map to padded ref --> clover-seq --> genome
+# - Edit input to spike-ins
+# - Normalization?
+#
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import pandas as pd
 import pprint
@@ -45,12 +50,12 @@ all_inputs += expand("collapsed/{sample}.seqcluster.fastq.gz", sample=sample_lis
 all_inputs += expand("collapsed/{sample}.seqcluster.hairpin.aln.srt.bam", sample=sample_list)
 
 #----- miRBase alignment and metrics (always included)
-all_inputs += expand("mirbase_alignment/mature/{sample}.mature.srt.bam", sample=sample_list)
+all_inputs += expand("mirbase_alignment/{sample}.mature.srt.bam", sample=sample_list)
 if USE_UMITOOLS:
-    all_inputs += expand("mirbase_alignment/mature/{sample}.mature.srt.dedup.bam", sample=sample_list)
-all_inputs += expand("mirbase_alignment/mature/{sample}.mature.unalign.fastq", sample=sample_list)
-all_inputs += expand("mirbase_alignment/mature/{sample}.mature.srt.bam.idxstats", sample=sample_list)
-all_inputs += expand("mirbase_alignment/mature/{sample}.mature.srt.bam.flagstat", sample=sample_list)
+    all_inputs += expand("mirbase_alignment/{sample}.mature.srt.dedup.bam", sample=sample_list)
+all_inputs += expand("mirbase_alignment/{sample}.mature.unalign.fastq", sample=sample_list)
+all_inputs += expand("mirbase_alignment/{sample}.mature.srt.bam.idxstats", sample=sample_list)
+all_inputs += expand("mirbase_alignment/{sample}.mature.srt.bam.flagstat", sample=sample_list)
 all_inputs += [
     "mirbase_counts/mature_mirbase.readcounts.tsv",
     "mirbase_counts/mature_mirbase.readcounts_tpm.tsv"]
@@ -254,7 +259,7 @@ rule miRtop:
             --hairpin {params.hairpin_fa} \
             --gtf {params.hairpin_gff} \
             -o mirtop \
-            {input.collapsed_aln} > {log.gff} 2>&1 &&
+            {input.collapsed_aln} > {log.gffLog} 2>&1 &&
         mv mirtop/{params.sample}.seqcluster.hairpin.aln.srt.gff mirtop/{params.sample}.hairpin.gff
         
         #----- Run miRtop counts
@@ -262,12 +267,12 @@ rule miRtop:
             -o mirtop \
             --hairpin {params.hairpin_fa} \
             --gff {output.mirtop_gff} \
-            --gtf {params.hairpin_gff} > {log.count} 2>&1
+            --gtf {params.hairpin_gff} > {log.countLog} 2>&1
 
         #----- Run miRtop stats
-        mirtop stats \
-            {params.sample}.hairpin.gff \
-            -o mirtop > {log.stats} 2>&1
+        #mirtop stats \
+        #   {params.sample}.hairpin.gff \
+        #    -o mirtop > {log.statLog} 2>&1
            
 """
 

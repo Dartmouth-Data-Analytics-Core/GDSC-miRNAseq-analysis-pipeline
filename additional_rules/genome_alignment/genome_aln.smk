@@ -12,11 +12,11 @@ rule mirbase_padded_aln:
     input:
         get_alignment_input
     output:
-        aligned = "mirbase_alignment/mature/{sample}.mature.srt.bam",
-        unaligned = "mirbase_alignment/mature/{sample}.mature.unalign.fastq",
+        aligned = "mirbase_alignment/{sample}.mature.srt.bam",
+        unaligned = "mirbase_alignment/{sample}.mature.unalign.fastq",
     params:
         sample = lambda wildcards:  wildcards.sample,
-        bowtie2_path = config["bowtie1_path"],
+        bowtie2_path = config["bowtie2_path"],
         padded_mature_index = config["padded_mature_index"],
         samtools_path = config["samtools_path"]
     threads: 8
@@ -28,17 +28,17 @@ rule mirbase_padded_aln:
     shell: """
 
         #----- Run Bowtie1 with unpadded reference
-        {params.bowtie_path} \
+        {params.bowtie2_path} \
             -x {params.padded_mature_index} \
             -U {input} \
-            -p 12 \
+            -p {threads} \
             --norc \
             -D 20 \
             -R 3 \
             -N 1 \
             -L 12 \
             -i S,1,0.50 \
-            --un mirbase_alignment/{params.sample}.unalign.fastq \
+            --un mirbase_alignment/{params.sample}.mature.unalign.fastq \
             -S mirbase_alignment/{params.sample}.aln.sam 2> {log}
 
         #----- Subset reads for aligned length > 16 & < 28bp & any reads with gaps (XO/XG tags)
@@ -55,8 +55,8 @@ rule mirbase_padded_aln:
             samtools view -b > mirbase_alignment/{params.sample}.sub2.bam
         
         #----- Sort and index BAM file 
-        {params.samtools_path} sort -@ 4 mirbase_alignment/{params.sample}.sub2.bam > mirbase_alignment/{params.sample}.srt.bam
-        {params.samtools_path} index mirbase_alignment/{params.sample}.srt.bam
+        {params.samtools_path} sort -@ 4 mirbase_alignment/{params.sample}.sub2.bam > mirbase_alignment/{params.sample}.mature.srt.bam
+        {params.samtools_path} index mirbase_alignment/{params.sample}.mature.srt.bam
 
         #----- Remove intermediate bam files 
         rm -rf mirbase_alignment/{params.sample}.bam
@@ -68,8 +68,8 @@ rule mirbase_padded_aln:
 #----- Define function selecting input BAM file for mirbase_stats (mature and hairpin)
 def get_mirbase_mature_stats_input(wildcards):
     if USE_UMITOOLS:
-        return f"mirbase_alignment/mature/{wildcards.sample}.mature.srt.dedup.bam"
-    return f"mirbase_alignment/mature/{wildcards.sample}.mature.srt.bam"
+        return f"mirbase_alignment/{wildcards.sample}.mature.srt.dedup.bam"
+    return f"mirbase_alignment/{wildcards.sample}.mature.srt.bam"
 
 #----- Calculate stats for alignments
 rule mature_mirbase_stats:
@@ -79,8 +79,8 @@ rule mature_mirbase_stats:
     input: 
         matureStats = get_mirbase_mature_stats_input,
     output:
-        mature_idx = "mirbase_alignment/mature/{sample}.mature.srt.bam.idxstats",
-        mature_flagstat = "mirbase_alignment/mature/{sample}.mature.srt.bam.flagstat",
+        mature_idx = "mirbase_alignment/{sample}.mature.srt.bam.idxstats",
+        mature_flagstat = "mirbase_alignment/{sample}.mature.srt.bam.flagstat",
     params:
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
@@ -100,7 +100,7 @@ rule mirbase_count:
     Count miRNAs
     """
     input:
-        expand("mirbase_alignment/mature/{sample}.mature.srt.bam.idxstats", sample=sample_list),
+        expand("mirbase_alignment/{sample}.mature.srt.bam.idxstats", sample=sample_list),
     output:
         rawCounts = "mirbase_counts/mature_mirbase.readcounts.tsv",
         tpmCount = "mirbase_counts/mature_mirbase.readcounts_tpm.tsv",
@@ -124,7 +124,7 @@ rule genome_alignment:
     Aligning all unaligned to genome.
     """
     input: 
-        "mirbase_alignment/mature/{sample}.mature.unalign.fastq",
+        "mirbase_alignment/{sample}.mature.unalign.fastq",
     output:
         "genome_alignment/{sample}.srt.bam",
         "genome_alignment/{sample}.srt.filt.bam",
@@ -218,8 +218,8 @@ rule alignment_metrics_counts:
     input:  
         expand("genome_alignment/{sample}.srt.filt.bam", sample=sample_list),
         expand("genome_alignment/{sample}.srt.filt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
-        expand("mirbase_alignment/mature/{sample}.mature.srt.bam", sample=sample_list),
-        expand("mirbase_alignment/mature/{sample}.mature.srt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
+        expand("mirbase_alignment/{sample}.mature.srt.bam", sample=sample_list),
+        expand("mirbase_alignment/{sample}.mature.srt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
         "genome_counts/featurecounts.readcounts.raw.tsv.summary"
     output: 
         "metrics/mirna_genome_alignment_metrics.tsv"
@@ -231,10 +231,11 @@ rule alignment_metrics_counts:
     message: "Collating alignment metrics."
     shell: """
         mkdir -p metrics
+
         if [ "{params.use_umi}" = "true" ]; then
-            python scripts/qc_metrics-umi.py umi_reads mirbase_alignment genome_alignment
+            python scripts/qc_metrics-umi.py umi_reads logs/mirbase_padded_aln logs/genome_alignment
         else
-            python scripts/qc_metrics-non-umi.py mirbase_alignment genome_alignment
+            python scripts/qc_metrics-non-umi.py logs/mirbase_padded_aln logs/genome_alignment
         fi
 """
 
