@@ -1,8 +1,24 @@
+#----- Import libraries
+import csv
+
+#----- Generate run file which is required for clover-seq rules
+def generate_runfile(sample_file):
+    with open(sample_file, 'r') as infile, open("runfile.txt", 'w') as outfile:
+        reader = csv.DictReader(infile)
+        for row in reader:
+            sample_id = row["sample_id"]
+            group = "dummy"   # <- hardcoded value
+            outfile.write(f"{sample_id} {group} contamination\n")
+
+#----- Run function
+generate_runfile(config["sample_csv"])
+
 #----- Function selecting input FASTQ file for alignment
 def get_alignment_input(wildcards):
     if USE_UMITOOLS:
         return f"umi_reads/{wildcards.sample}.umi.fastq.gz"
     return f"trimming/{wildcards.sample}.R1.trim.fastq.gz"
+
 
 #----- Rule to align reads to padded mature miRNA reference
 rule mirbase_padded_aln:
@@ -118,6 +134,100 @@ rule mirbase_count:
     python scripts/mirbase-readcnt_to_tpm.py mirbase_counts/mature_mirbase.readcounts.tsv
 """
 
+#----- Filtering
+rule tRNA_mapping:
+    """
+    Aligning reads that did not align to mature miRNA sequences to tRNA/smRNA database (Clover-Seq)
+    """
+    input:
+        unaligned = "mirbase_alignment/{sample}.mature.unalign.fastq"
+    output:
+        srtBam = "contamination/{sample}.contam.srt.bam",
+        unaligned_contam = "contamination/{sample}.contam.unaligned.fastq"
+    params:
+        sample = lambda wildcards:  wildcards.sample,
+        bowtie2_path = config["bowtie2_path"],
+        tRNA_database = config["tRNA_database"],
+        tRNA_bowtie2_index = config["tRNA_bowtie2_index"],
+        samtools_path = config["samtools_path"],
+    resources: 
+        cpus="10", 
+        maxtime="6:00:00", 
+        mem_mb="60gb"
+    message: "Mapping {wildcards.sample} mature miRNA unmapped reads to tRNA database."
+    log: "logs/contamination/{sample}.bowtie2.log"
+    shell: """
+    
+        #----- Run Bowtie2
+        {params.bowtie2_path} \
+            -x {params.tRNA_bowtie2_index} \
+            -U {input.unaligned} \
+            -D 20 \
+            -R 3 \
+            -N 1 \
+            -L 12 \
+            -i S,1,0.50 \
+            -k 100 \
+            --very-sensitive \
+            --np 5 \
+            --ignore-qual \
+            --un {output.unaligned_contam} \
+            -p {resources.cpus} \
+            -S contamination/{params.sample}.contam.aln.sam 2> {log}
+
+        #----- subset reads for aligned length > 15 & < 90bp 
+        {params.samtools_path} view -h contamination/{params.sample}.contam.aln.sam | \
+            awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ((length($10) > 15 && length($10) <= 90))' | \
+            {params.samtools_path} view -Sb - > contamination/{params.sample}.contam.bam
+        
+        #----- filter for any reads with MAPQ <=1
+        {params.samtools_path} view -h -q 2 contamination/{params.sample}.contam.bam > contamination/{params.sample}.sub.bam
+
+        #----- Sort and filter the bam file
+        {params.samtools_path} sort -@ 4 contamination/{params.sample}.sub.bam > {output.srtBam}
+        {params.samtools_path} index {output.srtBam}
+
+        #----- Remove temp files
+        rm -rf contamination/{params.sample}.contam.aln.sam
+        rm -rf contamination/{params.sample}.contam.bam
+        rm -rf contamination/{params.sample}.sub.bam
+    """
+
+#----- Rule to quantify contamination smRNAs
+rule contamination_count:
+    """
+    Count smRNA reads (contamination) with Clover-Seq
+    """
+    input:
+        expand("contamination/{sample}.contam.srt.bam", sample=sample_list)
+    output:
+        groupCounts = "contamination/counts/smRNA_raw_counts_by_group.txt",
+        counts = "contamination/counts/smRNA_raw_counts_by_sample.txt",
+        subGroupFile = "contamination/counts/subroup_counts.txt"
+    conda: "clover-seq"
+    params:
+        smRNA_count = "scripts/clover-seq/count_all_smRNA.py",
+        tRNA_database = config["tRNA_database"]
+    resources: 
+        cpus="12", 
+        maxtime="6:00:00", 
+        mem_mb="60gb"
+    message: "Counting smRNA contamination."
+    log: "logs/contamination/contamination_counts.log"
+    shell: """
+    
+        #----- Run the code to count all tRNA + smRNA
+        python {params.smRNA_count} \
+            --samplefile=runfile.txt \
+            --trnatable={params.tRNA_database}/db-trnatable.txt \
+            --ensemblgtf={params.tRNA_database}/genes.gtf \
+            --trnaloci={params.tRNA_database}/db-trnaloci.bed \
+            --maturetrnas={params.tRNA_database}/db-maturetRNAs.bed \
+            --realcountfile={output.counts} \
+            --countfile={output.groupCounts} \
+            --mismatchfile={output.subGroupFile}    
+    """
+    
 #----- Rule to conduct alignment to genome
 rule genome_alignment:
     """
@@ -209,12 +319,9 @@ rule genome_counts:
         python {params.fc_ann_script} {params.gtf} {output.tpm} > {output.tpmAnno}
 """
 
-
+"""
 #----- Rule to get genome alignment metrics
 rule alignment_metrics_counts:
-    """
-    Collate alignment metrics
-    """
     input:  
         expand("genome_alignment/{sample}.srt.filt.bam", sample=sample_list),
         expand("genome_alignment/{sample}.srt.filt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
@@ -229,7 +336,7 @@ rule alignment_metrics_counts:
         "../../env_config/featurecounts.yaml",
     resources: cpus="1", maxtime="8:00:00", mem_mb="2gb",
     message: "Collating alignment metrics."
-    shell: """
+    shell: 
         mkdir -p metrics
 
         if [ "{params.use_umi}" = "true" ]; then
@@ -237,8 +344,8 @@ rule alignment_metrics_counts:
         else
             python scripts/qc_metrics-non-umi.py logs/mirbase_padded_aln logs/genome_alignment
         fi
-"""
 
+"""
 #----- Rule to plot PCA
 rule pca_plots:
     """

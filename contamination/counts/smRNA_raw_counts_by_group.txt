@@ -1,0 +1,16 @@
+dummy
+other	6158.0
+snoRNA	2318.0
+snRNA	15.0
+scaRNA	5.0
+sRNA	1.0
+miRNA	351.0
+misc_RNA	7.0
+ribozyme	1.0
+Mt_rRNA	187.0
+Mt_tRNA	239.0
+rRNA	1.0
+pretRNA_amtosemse	0.0
+pretRNA	55.0
+tRNA_antisense	0.0
+tRNA	34.0

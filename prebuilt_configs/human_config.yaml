@@ -28,20 +28,25 @@ umitools_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/um
 samtools_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/samtools/samtools-1.11/samtools"
 bowtie1_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/bowtie/bowtie"
 bowtie2_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/bowtie2/bowtie2-2.4.4-linux-x86_64/bowtie2"
-seqcluster_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/seqcluster/seqcluster"
+seqcluster_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/seqcluster/bin/seqcluster"
 multiqc_path: "multiqc"
 python_mirna_venv: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/mirna-python-venv/bin/python3"
 featurecounts_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/featurecounts/subread-2.0.1-Linux-x86_64/bin/featureCounts"
 
 #-------------------------------------------#
-# Human Reference File Paths
+# Human Reference File Paths (Bowtie 1)
 #-------------------------------------------#
 bowtie1_mature_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/hsa/hsa_mature_index/mature"
 bowtie1_hairpin_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/hsa/hsa_hairpin_index/hairpins"
-bowtie2_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/hg38-bowtie2-index/hg38-bowtie2-index"
-annotation_gtf: "/dartfs/rc/nosnapshots/G/GMBSR_refs/Hsapiens/GRCh38/downloads/gencode.v45.annotation.gtf"
 hairpin_gff: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/hsa/hsa.gff3"
 hairpin_fa: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/hsa/hsa_mirbase_hairpins.fa"
+
+#-------------------------------------------#
+# Human Reference File Paths (Bowtie 2)
+#-------------------------------------------#
+padded_mature_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/mirbase-human-hg38-padded/mirbase-human-hg38-padded"
+bowtie2_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/hg38-bowtie2-index/hg38-bowtie2-index"
+annotation_gtf: "/dartfs/rc/nosnapshots/G/GMBSR_refs/Hsapiens/GRCh38/downloads/gencode.v45.annotation.gtf"
 
 #-------------------------------------------#
 # Utilities

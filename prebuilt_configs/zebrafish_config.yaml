@@ -28,20 +28,28 @@ umitools_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/um
 samtools_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/samtools/samtools-1.11/samtools"
 bowtie1_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/bowtie/bowtie"
 bowtie2_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/bowtie2/bowtie2-2.4.4-linux-x86_64/bowtie2"
-seqcluster_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/seqcluster/seqcluster"
+seqcluster_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/seqcluster/bin/seqcluster"
 multiqc_path: "multiqc"
 python_mirna_venv: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/mirna-python-venv/bin/python3"
 featurecounts_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/featurecounts/subread-2.0.1-Linux-x86_64/bin/featureCounts"
 
 #-------------------------------------------#
-# Zebrafish Reference File Paths
+# Zebrafish Reference File Paths (Bowtie1)
 #-------------------------------------------#
 bowtie1_mature_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/dre/dre_mature_index/mirbase_mature_drerio"
 bowtie1_hairpin_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/dre/dre_hairpin_index/hairpins"
-bowtie2_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/D_rerio/bowtie2-index-lawson/danRer11"
-annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/D_rerio/V4.3.2.validated.gtf"
 hairpin_gff: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/dre/dre.gff3"
 hairpin_fa: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/dre/dre_mirbase_hairpins.fa"
+
+#-------------------------------------------#
+# Zebrafish Reference File Paths (Bowtie2)
+#-------------------------------------------#
+padded_mature_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/snakemake/mirna-seq/DAC-RNAseq-pipeline/refs/mirbase_mature_drerio-padded/mirbase_mature_drerio-padded"
+bowtie2_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/D_rerio/bowtie2-index-lawson/danRer11"
+annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/D_rerio/V4.3.2.validated.gtf"
+tRNA_database: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/tRAX_databases/DanRer11_db"
+tRNA_bowtie2_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/tRAX_databases/DanRer11_db/bt2_index/db-tRNAgenome"
+
 
 #-------------------------------------------#
 # Utilities
