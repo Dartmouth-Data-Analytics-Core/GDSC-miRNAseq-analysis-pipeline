@@ -11,3 +11,10 @@ plots/*
 trimming/*
 dre.gff3
 multiqc_report.html
+mirna_*
+logs/*
+slurm_logs/*
+TEST/*
+dev_notes/*
+collapsed/*
+seqcluster/*

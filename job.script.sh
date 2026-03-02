@@ -20,4 +20,5 @@ snakemake -s \
     -T 2 \
     --use-conda \
     --conda-frontend conda \
-    --conda-prefix /dartfs/rc/nosnapshots/G/GMBSR_refs/envs/miRNAseq
+    --conda-prefix /dartfs/rc/nosnapshots/G/GMBSR_refs/envs/miRNAseq \
+    -np
