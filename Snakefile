@@ -5,10 +5,12 @@
 #
 # TO DO
 # - Add script to collapse isomirs down to their family to provide a decent proxy for mature counts
+# - Better linting and logging directives
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import pandas as pd
+import pprint
 
-#----- set config file
+#----- set config file if not defined in job script
 configfile: "config.yaml"
 USE_SPIKEINS = config.get("use_spikeins", False)
 USE_UMITOOLS = config.get("use_umitools", False)
@@ -32,7 +34,6 @@ rule all:
     input:
         #== Trimming and UMI Deduplication outputs
         expand("trimming/{sample}.R1.trim.fastq.gz", sample=sample_list),
-        expand("trimming/{sample}.cutadapt.report", sample=sample_list),    
         expand("umi_reads/{sample}.umi.fastq.gz", sample=sample_list) if USE_UMITOOLS else [],
         expand("collapsed/{sample}.seqcluster.fastq.gz", sample=sample_list),
         expand("collapsed/{sample}.seqcluster.hairpin.aln.srt.bam", sample=sample_list),
@@ -55,6 +56,9 @@ rule all:
 
         #== mirtop
         expand("mirtop/{sample}.hairpin.gff", sample=sample_list),
+        expand("mirtop/temp/{sample}.hairpin_long.csv", sample=sample_list),
+        "mirtop/final_isomir_counts.csv",
+        "mirtop/final_miRNA_counts.csv",
 
         #== Genome alignment and metrics outputs
         expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
@@ -88,9 +92,11 @@ rule all:
 
 #----- Rule to execute trimming
 rule trimming:
+    """
+    Read trimming
+    """
     output: 
         "trimming/{sample}.R1.trim.fastq.gz",
-        "trimming/{sample}.cutadapt.report"
     params:
         sample = lambda wildcards:  wildcards.sample,
         fastq_file_1 = lambda wildcards: samples_df.loc[wildcards.sample, "fastq_1"],
@@ -102,6 +108,8 @@ rule trimming:
         cpus="10", 
         maxtime="2:00:00", 
         mem_mb="60gb",
+    message: "Trimming {wildcards.sample} reads with cutadapt."
+    log: "logs/trimming/{sample}.cutadapt.log"
     shell: """
         cutadapt \
             -o trimming/{params.sample}.R1.trim.fastq.gz \
@@ -112,7 +120,7 @@ rule trimming:
             -q 30 \
             --max-n 0.8 \
             -a {params.adapter_3prime} \
-            --trim-n > trimming/{params.sample}.cutadapt.report
+            --trim-n > {log}
     """
 
 #----- Function selecting input FASTQ file for alignment
@@ -123,6 +131,9 @@ def get_alignment_input(wildcards):
 
 #----- Rule to collapse reads with seqcluster
 rule seqcluster:
+    """
+    Collapse reads
+    """
     input: get_alignment_input
     output: 
         collapsed = "collapsed/{sample}.seqcluster.fastq.gz"
@@ -134,6 +145,8 @@ rule seqcluster:
     resources:
         maxtime="2:00:00",
         mem_mb="60gb"
+    message: "Collapsing {wildcards.sample} reads with Seqcluster."
+    log: "logs/seqcluster/{sample}.seqcluster.log"
     shell: """
     
         #----- Run seqcluster to collapse reads
@@ -142,7 +155,7 @@ rule seqcluster:
             -m 1 \
             --min_size 15 \
             -f {input} \
-            -o collapsed
+            -o collapsed > {log} 2>&1
         
         mv collapsed/{params.sample}.R1.trim_trimmed.fastq collapsed/{params.sample}.seqcluster.fastq
         gzip collapsed/{params.sample}.seqcluster.fastq
@@ -151,6 +164,9 @@ rule seqcluster:
 
 #----- Rule to align collapsed reads to hairpins
 rule collapsed_hairpin_aln:
+    """
+    Align collapsed reads to hairpin sequences
+    """
     input:
         seqcluster_fastq = "collapsed/{sample}.seqcluster.fastq.gz"
     output:
@@ -164,6 +180,8 @@ rule collapsed_hairpin_aln:
     resources:
         maxtime="2:00:00",
         mem_mb="60gb"
+    message: "Aligning {wildcards.sample} collapsed reads to hairpin index with Bowtie1."
+    log: "logs/seqcluster/{sample}.seqcluster.hairpin.aln.log"
     shell: """
     
         #----- Align collapsed reads to hairpins
@@ -180,7 +198,7 @@ rule collapsed_hairpin_aln:
             -e 99999 \
             --chunkmbs 2048 \
             {input.seqcluster_fastq} \
-            2>| >(tee collapsed/{params.sample}_aln.out >&2) \
+            2>| >(tee {log} >&2) \
             | {params.samtools_path} view -@ 24 -bS - \
             | {params.samtools_path} sort -@ 24 -o {output.collapsed_aln}
 
@@ -190,6 +208,9 @@ rule collapsed_hairpin_aln:
 
 #----- Rule to align reads to non-padded mature miRNA reference
 rule mirbase_mature_aln:
+    """
+    Align sequences to mirbase mature
+    """
     input:
         get_alignment_input
     output:
@@ -204,6 +225,7 @@ rule mirbase_mature_aln:
     resources: 
         maxtime="2:00:00", 
         mem_mb="60gb",
+    message: "Aligning {wildcards.sample} reads to mature miRNA sequences with Bowtie1."
     shell: """
 
         #----- Run Bowtie1 with unpadded reference
@@ -243,6 +265,9 @@ rule mirbase_mature_aln:
 
 #----- Rule to align unaligned reads to hairpin database
 rule mirbase_hairpin_aln:
+    """
+    Align reads that did not align to mature to hairpin sequences
+    """
     input:
         "mirbase_alignment/mature/{sample}.mature.unalign.fastq",
     output:
@@ -257,6 +282,7 @@ rule mirbase_hairpin_aln:
     resources: 
         maxtime="2:00:00", 
         mem_mb="60gb",
+    message: "Aligning {wildcards.sample} mature miRNA unaligned reads to hairpins with Bowtie1."
     shell: """
 
         #----- Run Bowtie1 with unpadded reference
@@ -305,6 +331,9 @@ def get_mirbase_hairpin_stats_input(wildcards):
 
 #----- Calculate stats for alignments
 rule mature_mirbase_stats:
+    """
+    Collate stats for mirbase alignments
+    """
     input: 
         matureStats = get_mirbase_mature_stats_input,
         hairpinStats = get_mirbase_hairpin_stats_input
@@ -320,6 +349,7 @@ rule mature_mirbase_stats:
         cpus="10", 
         maxtime="2:00:00", 
         mem_mb="60gb",
+    message: "Collating {wildcards.sample} mirbase stats with Samtools"
     shell: """
     {params.samtools_path} idxstats {input.matureStats} > {output.mature_idx}
     {params.samtools_path} flagstat {input.matureStats} > {output.mature_flagstat}
@@ -327,10 +357,11 @@ rule mature_mirbase_stats:
     {params.samtools_path} flagstat {input.hairpinStats} > {output.hairpin_flagstat}
 """
 
-
-
 #----- Rule to run miRtop
 rule miRtop:
+    """
+    Running mirtop for isomiR calculation
+    """
     input:
         collapsed_aln = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam"
     output:
@@ -345,6 +376,11 @@ rule miRtop:
         cpus="10", 
         maxtime="2:00:00", 
         mem_mb="60gb",
+    message: "Getting {wildcards.sample} isomiRs with miRtop."
+    log: 
+        gffLog = "logs/mirtop/{sample}.mirtop.gff.log",
+        countLog = "logs/mirtop/{sample}.mirtop.counts.log",
+        statLog = "logs/mirtop/{sample}.mirtop.stats.log"
     shell: """
 
         #----- Run miRtop GFF
@@ -354,7 +390,7 @@ rule miRtop:
             --hairpin {params.hairpin_fa} \
             --gtf {params.hairpin_gff} \
             -o mirtop \
-            {input.collapsed_aln} &&
+            {input.collapsed_aln} > {log.gff} 2>&1 &&
         mv mirtop/{params.sample}.seqcluster.hairpin.aln.srt.gff mirtop/{params.sample}.hairpin.gff
         
         #----- Run miRtop counts
@@ -362,28 +398,89 @@ rule miRtop:
             -o mirtop \
             --hairpin {params.hairpin_fa} \
             --gff {output.mirtop_gff} \
-            --gtf {params.hairpin_gff}
+            --gtf {params.hairpin_gff} > {log.count} 2>&1
 
         #----- Run miRtop stats
-        #mirtop stats \
-        #    {params.sample}.hairpin.gff \
-        #    -o mirtop/stats \
-        #    
+        mirtop stats \
+            {params.sample}.hairpin.gff \
+            -o mirtop > {log.stats} 2>&1
+           
 """
 
+#----- Rule to pivot isomiRs longer
+rule pivot_isomirs_longer:
+    """
+    Pivot isomiRs longer
+    """
+    input:
+        isomiR_counts = "mirtop/{sample}.hairpin.tsv"
+    output:
+        isomiR_long = "mirtop/temp/{sample}.hairpin_long.csv"
+    conda: "env_config/r_env.yaml"
+    params:
+        sample = lambda wildcards:  wildcards.sample,
+    resources:
+        cpus="10", 
+        maxtime="2:00:00", 
+        mem_mb="60gb",
+    message: "Pivottings {wildcards.sample} isomiR data to long format."
+    shell: """
+
+        #----- Pivot longer
+        Rscript scripts/pivot_longer.R \
+            {input} \
+            {output}
+    
+    """
+
+#----- Rule to collate master isomiR table
+rule collate_isomir_table:
+    """
+    Combine isomiR results into master table
+    """
+    input:
+        expand("mirtop/temp/{sample}.hairpin_long.csv", sample=sample_list)
+    output:
+        variantLevel = "mirtop/final_isomir_counts.csv",
+        miRNALevel = "mirtop/final_miRNA_counts.csv"
+    conda: "env_config/r_env.yaml"
+    resources:
+        cpus="10", 
+        maxtime="2:00:00", 
+        mem_mb="60gb",
+    message: "Collating isomir counts across samples."
+    shell: """
+    
+    #----- Collate all counts files
+    awk 'NR == 1 || FNR > 1' \
+        {input} > "mirtop/temp/master_counts_long.csv"
+    
+    #----- Create master counts file with formatting
+    Rscript scripts/pivot_wider.R \
+        mirtop/temp/master_counts_long.csv \
+        {output.variantLevel} \
+        {output.miRNALevel}
+    
+    #----- Clean up
+    rm -r mirtop/temp
+    
+    """
 
 #----- Rule to count miRNAs (mature only)
 rule mirbase_count:
+    """
+    Count miRNAs
+    """
     input:
         expand("mirbase_alignment/mature/{sample}.mature.srt.bam.idxstats", sample=sample_list),
     output:
         rawCounts = "mirbase_counts/mature_mirbase.readcounts.tsv",
         tpmCount = "mirbase_counts/mature_mirbase.readcounts_tpm.tsv",
-    params:
     resources: 
         cpus="10", 
         maxtime="2:00:00", 
         mem_mb="60gb",
+    message: "Counting miRNAs."
     shell: """
     echo -ne mirbase_ID"\t"Length"\t" > mirbase_counts/mature_mirbase.readcounts.tsv
     echo {input} | tr " " "\t"| sed s/"mirbase_alignment\/"//g| sed s/".srt.bam.idxstats"//g >> mirbase_counts/mature_mirbase.readcounts.tsv
@@ -395,6 +492,9 @@ rule mirbase_count:
 
 #----- Rule to conduct alignment to genome
 rule genome_alignment:
+    """
+    Aligning all unaligned to genome.
+    """
     input: 
         "mirbase_alignment/hairpin/{sample}.hairpin.unalign.fastq",
     output:
@@ -405,9 +505,8 @@ rule genome_alignment:
         bowtie2_path = config["bowtie2_path"],
         bowtie2_genome_index = config["bowtie2_genome_index"],
         samtools_path = config["samtools_path"],
-    
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
+    message: "Aligning {wildcards.sample} unaligned reads to full genome."
     shell: """
 
         #----- Genome alignment
@@ -440,6 +539,9 @@ def get_genome_counts_input(wildcards):
 
 #----- Count genome alignments
 rule genome_counts:
+    """
+    Get genome counts
+    """
     input:  
         get_genome_counts_input
     output: 
@@ -447,7 +549,6 @@ rule genome_counts:
         tpm = "genome_counts/featurecounts.readcounts_tpm.tsv",
         tpmAnno = "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
         summary = "genome_counts/featurecounts.readcounts.raw.tsv.summary"
-
     params:
         featurecounts = config['featurecounts_path'],
         layout = config["layout"],
@@ -458,6 +559,7 @@ rule genome_counts:
     conda:
         "env_config/featurecounts.yaml",
     resources: cpus="10", maxtime="8:00:00", mem_mb="100gb",
+    message: "Getting genome counts."
     shell: """
 
         #----- Count
@@ -483,6 +585,9 @@ rule genome_counts:
 #----- Rule to get genome alignment metrics
 #! TO-DO: need to fix this to work with Bowtie1 logs, for now we turn it off
 rule alignment_metrics_counts:
+    """
+    Collate alignment metrics
+    """
     input:  
         expand("genome_alignment/{sample}.srt.filt.bam", sample=sample_list),
         expand("genome_alignment/{sample}.srt.filt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
@@ -496,6 +601,7 @@ rule alignment_metrics_counts:
     conda:
         "env_config/featurecounts.yaml",
     resources: cpus="1", maxtime="8:00:00", mem_mb="2gb",
+    message: "Collating alignment metrics."
     shell: """
         mkdir -p metrics
         if [ "{params.use_umi}" = "true" ]; then
@@ -508,6 +614,9 @@ rule alignment_metrics_counts:
 
 #----- Rule to plot PCA
 rule pca_plots:
+    """
+    Principal component analysis
+    """
     input: "mirbase_counts/mature_mirbase.readcounts.tsv",
     output:
         "plots/PCA_1_vs_2.png",
@@ -520,6 +629,7 @@ rule pca_plots:
         # uses a subset of the packages that featurecounts does
         "env_config/pcaplot.yaml",
     resources: cpus="1", maxtime="1:00:00", mem_mb="2gb",
+    message: "Calculating principal components."
     shell: """
         python {params.pca_plot_script} \
         mirbase_counts/mature_mirbase.readcounts.tsv \

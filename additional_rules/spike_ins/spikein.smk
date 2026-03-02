@@ -1,4 +1,7 @@
 rule spikein_bbduk:
+    """
+    Generate spike in data
+    """
     input:
         "trimming/{sample}.R1.trim.fastq.gz"
     output:
@@ -10,6 +13,7 @@ rule spikein_bbduk:
     threads: 8
     conda:
         "../../env_config/bbmap.yaml"
+    message: "Generating {wildcards.sample} spike-in data with bbmap."
     shell: """
         mkdir -p spikein_alignment
         
@@ -27,6 +31,9 @@ rule spikein_bbduk:
     """
 
 rule spikein_counts:
+    """
+    Get spike-in counts
+    """
     input:
         expand("spikein_alignment/{sample}.stats", sample=sample_list)
     output:
@@ -34,6 +41,7 @@ rule spikein_counts:
     params:
         samples=lambda wildcards, input: [path.split("/")[-1].replace(".stats","") for path in input]
     resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
+    message: "Generating spike-in counts."
     shell: """
         echo STATS: {input}
         echo SAMPLES: {params.samples}
@@ -46,6 +54,9 @@ rule spikein_counts:
 
 
 rule mappingBowtieSpikeIns:
+    """
+    Align spike-in data
+    """
     input:  
         "trimming/{sample}.R1.trim.fastq.gz"
     output: 
@@ -56,6 +67,7 @@ rule mappingBowtieSpikeIns:
     log:    "spikein_alignment/{sample}.log" 
     conda:
         "../../env_config/bowtie1.yaml"
+    message: "Aligning {wildcards.sample} spike-in data with Bowtie"
     shell:
         """
         mkdir -p spikein_alignment
@@ -69,6 +81,9 @@ rule mappingBowtieSpikeIns:
 
 
 rule normalize_data_spikein:
+    """
+    Normalize spike-in data
+    """
     input:
         spikein = "spikein_counts/spikein.readcounts.tsv",
         mirbase_counts = "mirbase_counts/mirbase.readcounts.tsv"
@@ -80,6 +95,7 @@ rule normalize_data_spikein:
     resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
     params:
         final_volume = config["sample_with_spikein_finalvolume"]
+    message: "Normalizing spike-in data"
     shell:
         """
         mkdir -p spikein_metrics

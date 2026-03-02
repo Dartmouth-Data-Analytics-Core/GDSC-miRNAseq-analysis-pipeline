@@ -2,8 +2,7 @@
 
 #SBATCH --job-name=mirna
 #SBATCH --nodes=1
-#SBATCH --partition=preempt1
-#SBATCH --account=dac
+#SBATCH --partition=standard
 #SBATCH --mail-user=f007qps@dartmouth.edu
 #SBATCH --time=60:00:00
 #SBATCH --mail-type=FAIL
@@ -12,7 +11,7 @@
 source /optnfs/common/miniconda3/etc/profile.d/conda.sh
 conda activate /dartfs/rc/nosnapshots/G/GMBSR_refs/envs/snakemake
 
-mkdir -p logs
+mkdir -p slurm_logs
 
 snakemake -s \
     Snakefile \
