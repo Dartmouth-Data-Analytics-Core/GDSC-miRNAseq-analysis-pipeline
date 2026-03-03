@@ -9,8 +9,11 @@
 # - Add in filtering:
     # - map to padded ref --> clover-seq --> genome
 # - Edit input to spike-ins
-# - Normalization?
-#
+# - Normalization (merged output) - Check with Shannon
+# - Caitlin wants tRNA abundances explicitly...
+# - Figure out multiqc report, need to update versions
+# - Remove 5' isomirs, merged both w/ and w/o 5p' (how diverse are 3')
+# - String of isomir classes to include in merged counts (config) -- will need a separate script for this
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import pandas as pd
 import pprint
@@ -56,9 +59,7 @@ if USE_UMITOOLS:
 all_inputs += expand("mirbase_alignment/{sample}.mature.unalign.fastq", sample=sample_list)
 all_inputs += expand("mirbase_alignment/{sample}.mature.srt.bam.idxstats", sample=sample_list)
 all_inputs += expand("mirbase_alignment/{sample}.mature.srt.bam.flagstat", sample=sample_list)
-all_inputs += [
-    "miRNA_Quant/mature/mature_mirbase.readcounts.tsv",
-    "miRNA_Quant/mature/mature_mirbase.readcounts_tpm.tsv"]
+all_inputs += ["miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv"]
 
 #----- Contamination filtering
 all_inputs += expand("contamination/{sample}.contam.srt.bam", sample=sample_list)
@@ -71,10 +72,7 @@ all_inputs += [
 #----- mirtop outputs
 all_inputs += expand("mirtop/{sample}.hairpin.gff", sample=sample_list)
 all_inputs += expand("mirtop/temp/{sample}.hairpin_long.csv", sample=sample_list)
-all_inputs += [
-    "miRNA_Quant/isomiRs/isomir_counts.csv",
-    "miRNA_Quant/isomiRs/isomirs_collapsed_by_miRNA_counts.csv",
-    "miRNA_Quant/merged/merged_mature_and_isomir_counts.csv"]
+all_inputs += ["mirtop/mirtop_stats.log"]
 
 #----- Genome alignment and featureCounts (always included)
 all_inputs += expand("genome_alignment/{sample}.srt.bam", sample=sample_list)
@@ -119,6 +117,10 @@ rule all:
         else
             {params.multiqc} -v -c multiqc_config.yaml genome_alignment mirbase_alignment genome_counts mirbase_counts
         fi
+
+        #----- Clean
+        rm -r mirtop/log
+        rm -r 
 
 """
 
@@ -194,7 +196,7 @@ rule seqcluster:
             -m 1 \
             --min_size 15 \
             -f {input} \
-            -o collapsed 2> {log} 
+            -o collapsed > {log} 
         
         #----- Clean
         mv collapsed/{params.sample}.R1.trim_trimmed.fastq collapsed/{params.sample}.seqcluster.fastq
@@ -304,7 +306,9 @@ rule mirtop_stats:
     Run mirtop stats
     """
     input:
-        expand("mirtop/{sample}.hairpin.tsv", sample=sample_list)
+        expand("mirtop/{sample}.hairpin.gff", sample=sample_list)
+    output:
+        "mirtop/mirtop_stats.log"
     conda: "env_config/mirtop.yaml"
     resources:
         cpus="10", 
@@ -346,7 +350,7 @@ rule pivot_isomirs_longer:
     
     """
 
-#----- Rule to collate master isomiR table
+#----- Rule to collate master isomiR table, remove canonical miRNA counts from isomiR table
 rule collate_isomir_table:
     """
     Combine isomiR results into master table
@@ -354,8 +358,7 @@ rule collate_isomir_table:
     input:
         expand("mirtop/temp/{sample}.hairpin_long.csv", sample=sample_list)
     output:
-        variantLevel = "miRNA_Quant/isomiRs/isomir_counts.csv",
-        miRNALevel = "miRNA_Quant/isomiRs/isomirs_collapsed_by_miRNA_counts.csv"
+        "miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv"
     conda: "env_config/r_env.yaml"
     resources:
         cpus="10", 
@@ -364,21 +367,15 @@ rule collate_isomir_table:
     message: "Collating isomir counts across samples."
     shell: """
     
-    #----- Make subdirectory
-    mkdir -p miRNA_Quant/isomiRs
-
     #----- Collate all counts files
     awk 'NR == 1 || FNR > 1' \
         {input} > "mirtop/temp/master_counts_long.csv"
-    
+
     #----- Create master counts file with formatting
     Rscript scripts/pivot_wider.R \
         mirtop/temp/master_counts_long.csv \
-        {output.variantLevel} \
-        {output.miRNALevel}
+        miRNA_Quant/
     
-    #----- Clean up
-    rm -r mirtop/temp
     
     """
 

@@ -1,51 +1,73 @@
-#!/usr/bin/env Rscript
+library(tidyverse)
 
-suppressPackageStartupMessages({
-  library(tidyverse)
-})
-
-# ---- command line args ----
+#----- Set command line args
 args <- commandArgs(trailingOnly = TRUE)
 
-if (length(args) < 3) {
-  stop("Usage: pivot_wider_and_sum_mirna.R <input_long.csv> <output_wide.csv> <output_mirna_sum.csv>")
+if (length(args) < 2) {
+  stop("Usage: script.R <input_file> <outputDir>")
 }
 
-input_file        <- args[1]
-output_wide_file  <- args[2]
-output_sum_file   <- args[3]
+input_file <- args[1] # Long format isomiR master counts
+outputDir <- args[2] # isomiR count dir
 
-# ---- read input ----
-long_data <- readr::read_csv(
-  input_file,
-  col_types = cols(
-    Counts = col_double(),
-    .default = col_character()
-  )
-)
+if (!dir.exists(outputDir)) {
+  dir.create(outputDir)
+}
 
-# ---- 1. pivot to wide (variant-level) ----
-wide_variant <- long_data %>%
-  tidyr::pivot_wider(
-    names_from  = Sample_ID,
-    values_from = Counts,
-    values_fill = 0
-  )
+#----- Read in the input file
+data <- read.csv(input_file, na.strings = "")
 
-readr::write_csv(wide_variant, output_wide_file)
+#----- Collapse data by miRNA family
+sum_by_miRNA <- function(df) {
+  df %>%
+    group_by(miRNA, Sample_ID) %>%
+    summarise(
+      Counts = sum(Counts, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    pivot_wider(
+      names_from  = Sample_ID,
+      values_from = Counts,
+      values_fill = 0
+    ) %>%
+    arrange(miRNA)
+}
 
-# ---- 2. sum variants per miRNA ----
-mirna_summed <- long_data %>%
-  group_by(miRNA, Sample_ID) %>%
-  summarise(
-    Counts = sum(Counts, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  pivot_wider(
-    names_from  = Sample_ID,
-    values_from = Counts,
-    values_fill = 0
-  ) %>%
-  arrange(miRNA)
+#----- Run function and save
+summed <- sum_by_miRNA(data)
+write.csv(summed, file = paste0(outputDir, "raw_merged_canonical_and_all_isomirs.csv"), row.names = FALSE, quote = FALSE)
 
-readr::write_csv(mirna_summed, output_sum_file)
+#----- Get just the canonical counts
+canonical <- data[data$Variant == "NA",]
+write.csv(canonical, file = paste0(outputDir, "raw_canonical_counts.csv"), row.names = FALSE, quote = FALSE)
+
+#----- Get noncanonical
+isomirs <- data[data$Variant != "NA",]
+
+#----- Assign isomir class
+assign_iso_class <- function(df) {
+  df %>%
+    mutate(
+      iso_class = case_when(
+        as.numeric(iso_5p) != 0 ~ "5p",
+        as.numeric(iso_3p) != 0 ~ "3p",
+        as.numeric(iso_add3p) != 0 ~ "non-templated",
+        as.numeric(iso_snp) != 0 ~ "snp",
+        TRUE ~ "canonical"
+      )
+    )
+}
+
+isomirs <- assign_iso_class(isomirs)
+
+#----- Output all isomir data
+write.csv(isomirs, file = paste0(outputDir, "raw_all_isomir_counts.csv"), row.names = FALSE, quote = FALSE)
+
+#----- Split by each category
+classes <- unique(isomirs$iso_class)
+for (i in classes) {
+  isoSub <- isomirs[isomirs$iso_class == i,]
+  fileName <- paste0(i, "_isomir_counts.csv")
+  write.csv(isoSub, file = paste0(outputDir, fileName), row.names = FALSE, quote = FALSE)
+}
+
