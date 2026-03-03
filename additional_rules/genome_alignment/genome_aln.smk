@@ -40,8 +40,11 @@ rule mirbase_padded_aln:
         maxtime="2:00:00", 
         mem_mb="60gb",
     message: "Aligning {wildcards.sample} reads to padded mature miRNA sequences with Bowtie2."
-    log: "logs/mirbase_padded_aln/{sample}.bowtie2.log"
+    log: "alignment_logs/mirbase_mature_padded/{sample}.bowtie2.mature.log"
     shell: """
+
+        #----- Make logs subdirectory
+        mkdir -p alignment_logs/mirbase_mature_padded
 
         #----- Run Bowtie1 with unpadded reference
         {params.bowtie2_path} \
@@ -118,21 +121,55 @@ rule mirbase_count:
     input:
         expand("mirbase_alignment/{sample}.mature.srt.bam.idxstats", sample=sample_list),
     output:
-        rawCounts = "mirbase_counts/mature_mirbase.readcounts.tsv",
-        tpmCount = "mirbase_counts/mature_mirbase.readcounts_tpm.tsv",
+        rawCounts = "miRNA_Quant/mature/mature_mirbase.readcounts.tsv",
+        tpmCount = "miRNA_Quant/mature/mature_mirbase.readcounts_tpm.tsv",
     resources: 
         cpus="10", 
         maxtime="2:00:00", 
         mem_mb="60gb",
-    message: "Counting miRNAs."
+    message: "Counting mature miRNAs."
     shell: """
-    echo -ne mirbase_ID"\t"Length"\t" > mirbase_counts/mature_mirbase.readcounts.tsv
-    echo {input} | tr " " "\t"| sed s/"mirbase_alignment\/"//g| sed s/".srt.bam.idxstats"//g >> mirbase_counts/mature_mirbase.readcounts.tsv
-    paste {input}| awk -f scripts/mirbase_counts.awk >> mirbase_counts/mature_mirbase.readcounts.tsv
 
-    # run TPM normalization 
-    python scripts/mirbase-readcnt_to_tpm.py mirbase_counts/mature_mirbase.readcounts.tsv
+    #----- Make subdirectory
+    mkdir -p miRNA_Quant/mature
+
+    #----- Collate counts
+    echo -ne mirbase_ID"\t"Length"\t" > miRNA_Quant/mature/mature_mirbase.readcounts.tsv
+    echo {input} | tr " " "\t"| sed s/"mirbase_alignment\/"//g| sed s/".srt.bam.idxstats"//g >> miRNA_Quant/mature/mature_mirbase.readcounts.tsv
+    paste {input}| awk -f scripts/mirbase_counts.awk >> miRNA_Quant/mature/mature_mirbase.readcounts.tsv
+
+    #----- Run TPM normalization 
+    python scripts/mirbase-readcnt_to_tpm.py miRNA_Quant/mature/mature_mirbase.readcounts.tsv
 """
+
+#----- Rule to integrate isomir counts and mature counts
+rule integrate_mature_and_isomirs:
+    """
+    Intgrate mature and isomiR counts
+    """
+    input:
+        mature = "miRNA_Quant/mature/mature_mirbase.readcounts.tsv",
+        isomirs = "miRNA_Quant/isomiRs/isomirs_collapsed_by_miRNA_counts.csv"
+    output:
+        integrated = "miRNA_Quant/merged/merged_mature_and_isomir_counts.csv"
+    conda: "../../env_config/r_env.yaml"
+    resources:
+        cpus="10", 
+        maxtime="2:00:00", 
+        mem_mb="60gb",
+    message: "Integrating mature and isomir counts."
+    shell: """
+
+        #----- Make subdirectory
+        mkdir -p miRNA_Quant/merged
+
+        #----- Integrated isomir counts and mature counts
+        Rscript scripts/merge_mature_and_isomirs.R \
+            miRNA_Quant/isomiRs/isomirs_collapsed_by_miRNA_counts.csv \
+            miRNA_Quant/mature/mature_mirbase.readcounts.tsv \
+            miRNA_Quant/merged/merged_mature_and_isomir_counts.csv
+    
+    """
 
 #----- Filtering
 rule tRNA_mapping:
@@ -155,9 +192,12 @@ rule tRNA_mapping:
         maxtime="6:00:00", 
         mem_mb="60gb"
     message: "Mapping {wildcards.sample} mature miRNA unmapped reads to tRNA database."
-    log: "logs/contamination/{sample}.bowtie2.log"
+    log: "alignment_logs/clover-seq/{sample}.bowtie2.tRNA.log"
     shell: """
     
+        #----- Make log subdirectory
+        mkdir -p alignment_logs/clover-seq
+
         #----- Run Bowtie2
         {params.bowtie2_path} \
             -x {params.tRNA_bowtie2_index} \
@@ -213,7 +253,6 @@ rule contamination_count:
         maxtime="6:00:00", 
         mem_mb="60gb"
     message: "Counting smRNA contamination."
-    log: "logs/contamination/contamination_counts.log"
     shell: """
     
         #----- Run the code to count all tRNA + smRNA
@@ -227,6 +266,9 @@ rule contamination_count:
             --countfile={output.groupCounts} \
             --mismatchfile={output.subGroupFile}    
     """
+
+#!!! DO WE WANT TO ADD SOMETHING HERE TO NOT REPORT THE MIRNAS OUTPUT BY CLOVER-SEQ?
+#rule map_piRNA
     
 #----- Rule to conduct alignment to genome
 rule genome_alignment:
@@ -245,8 +287,11 @@ rule genome_alignment:
         samtools_path = config["samtools_path"],
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
     message: "Aligning {wildcards.sample} padded mature unaligned reads to full genome."
-    log: "logs/genome_alignment/{sample}.bowtie2.log"
+    log: "alignment_logs/genome_alignment/{sample}.bowtie2.genome.log"
     shell: """
+
+        #----- Make logs subdirectory
+        mkdir -p alignment_logs/genome_alignment
 
         #----- Genome alignment
         {params.bowtie2_path} \
@@ -340,9 +385,9 @@ rule alignment_metrics_counts:
         mkdir -p metrics
 
         if [ "{params.use_umi}" = "true" ]; then
-            python scripts/qc_metrics-umi.py umi_reads logs/mirbase_padded_aln logs/genome_alignment
+            python scripts/qc_metrics-umi.py umi_reads alignment_logs/mirbase_mature_padded/{sample}.bowtie2.mature.log alignment_logs/genome_alignment/{sample}.bowtie2.genome.log
         else
-            python scripts/qc_metrics-non-umi.py logs/mirbase_padded_aln logs/genome_alignment
+            python scripts/qc_metrics-non-umi.py alignment_logs/mirbase_mature_padded/{sample}.bowtie2.mature.log alignment_logs/genome_alignment/{sample}.bowtie2.genome.log
         fi
 
 """
@@ -351,7 +396,7 @@ rule pca_plots:
     """
     Principal component analysis
     """
-    input: "mirbase_counts/mature_mirbase.readcounts.tsv",
+    input: "miRNA_Quant/mature/mature_mirbase.readcounts.tsv",
     output:
         "plots/PCA_1_vs_2.png",
         "plots/PCA_Variance_Bar_Plot.png",
@@ -365,8 +410,7 @@ rule pca_plots:
     message: "Calculating principal components."
     shell: """
         python {params.pca_plot_script} \
-        mirbase_counts/mature_mirbase.readcounts.tsv \
+        {input} \
         plots \
         --genes_considered {params.num_genes} 
-#        --color_file sample_ref/sample_colors_hex.tsv
     """

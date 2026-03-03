@@ -5,7 +5,7 @@
 #
 # TO DO
 # - Add script to collapse isomirs down to their family to provide a decent proxy for mature counts
-# - Add collapsed isomiR counts to mature counts for total counts
+#
 # - Add in filtering:
     # - map to padded ref --> clover-seq --> genome
 # - Edit input to spike-ins
@@ -25,7 +25,7 @@ samples_df = pd.read_csv(config["sample_csv"]).set_index("sample_id", drop=False
 sample_list = list(samples_df['sample_id'])
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# MAIN PIPELINE RULES
+# RULE ALL INPUTS
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #----- Include additional rules
@@ -57,15 +57,24 @@ all_inputs += expand("mirbase_alignment/{sample}.mature.unalign.fastq", sample=s
 all_inputs += expand("mirbase_alignment/{sample}.mature.srt.bam.idxstats", sample=sample_list)
 all_inputs += expand("mirbase_alignment/{sample}.mature.srt.bam.flagstat", sample=sample_list)
 all_inputs += [
-    "mirbase_counts/mature_mirbase.readcounts.tsv",
-    "mirbase_counts/mature_mirbase.readcounts_tpm.tsv"]
+    "miRNA_Quant/mature/mature_mirbase.readcounts.tsv",
+    "miRNA_Quant/mature/mature_mirbase.readcounts_tpm.tsv"]
+
+#----- Contamination filtering
+all_inputs += expand("contamination/{sample}.contam.srt.bam", sample=sample_list)
+all_inputs += expand("contamination/{sample}.contam.unaligned.fastq", sample=sample_list)
+all_inputs += [
+    "contamination/counts/smRNA_raw_counts_by_group.txt",
+    "contamination/counts/smRNA_raw_counts_by_sample.txt",
+    "contamination/counts/subroup_counts.txt"]
 
 #----- mirtop outputs
 all_inputs += expand("mirtop/{sample}.hairpin.gff", sample=sample_list)
 all_inputs += expand("mirtop/temp/{sample}.hairpin_long.csv", sample=sample_list)
 all_inputs += [
-    "mirtop/final_isomir_counts.csv",
-    "mirtop/final_miRNA_counts.csv"]
+    "miRNA_Quant/isomiRs/isomir_counts.csv",
+    "miRNA_Quant/isomiRs/isomirs_collapsed_by_miRNA_counts.csv",
+    "miRNA_Quant/merged/merged_mature_and_isomir_counts.csv"]
 
 #----- Genome alignment and featureCounts (always included)
 all_inputs += expand("genome_alignment/{sample}.srt.bam", sample=sample_list)
@@ -75,19 +84,22 @@ if USE_UMITOOLS:
 all_inputs += [
     "genome_counts/featurecounts.readcounts.ann.tsv",
     "genome_counts/featurecounts.readcounts_tpm.tsv",
-    "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
-    "metrics/mirna_genome_alignment_metrics.tsv"]
+    "genome_counts/featurecounts.readcounts_tpm.ann.tsv"]
+    #"metrics/mirna_genome_alignment_metrics.tsv"]
 
 #----- Spike-in outputs (optional)
 if USE_SPIKEINS:
     all_inputs += expand("spikein_alignment/{sample}.unmapped.bowtie.fastq.gz", sample=sample_list)
     all_inputs += [
         "spikein_counts/spikein.readcounts.tsv",
-        "spikein_metrics/normalized_scalefactor_mirbase_counts.tsv"
-    ]
+        "spikein_metrics/normalized_scalefactor_mirbase_counts.tsv"]
 
 #----- Plots (always included)
 all_inputs += ["plots/PCA_1_vs_2.png"]
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# PIPELINE
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #----- Main pipieline execution
 rule all:
@@ -107,6 +119,7 @@ rule all:
         else
             {params.multiqc} -v -c multiqc_config.yaml genome_alignment mirbase_alignment genome_counts mirbase_counts
         fi
+
 """
 
 #----- Rule to execute trimming
@@ -128,8 +141,12 @@ rule trimming:
         maxtime="2:00:00", 
         mem_mb="60gb",
     message: "Trimming {wildcards.sample} reads with cutadapt."
-    log: "logs/trimming/{sample}.cutadapt.log"
     shell: """
+
+        #----- Make log directory
+        mkdir -p trimming/logs
+
+        #----- Run cutadapt
         cutadapt \
             -o trimming/{params.sample}.R1.trim.fastq.gz \
             {params.fastq_file_1} \
@@ -139,7 +156,7 @@ rule trimming:
             -q 30 \
             --max-n 0.8 \
             -a {params.adapter_3prime} \
-            --trim-n > {log}
+            --trim-n > trimming/logs/{params.sample}.cutadapt.log
     """
 
 #----- Function selecting input FASTQ file for alignment
@@ -165,17 +182,21 @@ rule seqcluster:
         maxtime="2:00:00",
         mem_mb="60gb"
     message: "Collapsing {wildcards.sample} reads with Seqcluster."
-    log: "logs/seqcluster/{sample}.seqcluster.log"
+    log: "collapsed/logs/{sample}.seqcluster.log"
     shell: """
     
+        #----- Make log subdirectory
+        mkdir -p collapsed/logs
+
         #----- Run seqcluster to collapse reads
         seqcluster \
             collapse \
             -m 1 \
             --min_size 15 \
             -f {input} \
-            -o collapsed > {log} 2>&1
+            -o collapsed 2> {log} 
         
+        #----- Clean
         mv collapsed/{params.sample}.R1.trim_trimmed.fastq collapsed/{params.sample}.seqcluster.fastq
         gzip collapsed/{params.sample}.seqcluster.fastq
     
@@ -200,9 +221,12 @@ rule collapsed_hairpin_aln:
         maxtime="2:00:00",
         mem_mb="60gb"
     message: "Aligning {wildcards.sample} collapsed reads to hairpin index with Bowtie1."
-    log: "logs/seqcluster/{sample}.seqcluster.hairpin.aln.log"
+    log: "alignment_logs/seqcluster/{sample}.bowtie1.hairpin.aln.log"
     shell: """
     
+        #----- Make logs subdirectory
+        mkdir -p alignment_logs/seqcluster
+
         #----- Align collapsed reads to hairpins
         {params.bowtie1_path} \
             --threads {threads} \
@@ -247,10 +271,13 @@ rule miRtop:
         mem_mb="60gb",
     message: "Getting {wildcards.sample} isomiRs with miRtop."
     log: 
-        gffLog = "logs/mirtop/{sample}.mirtop.gff.log",
-        countLog = "logs/mirtop/{sample}.mirtop.counts.log",
-        statLog = "logs/mirtop/{sample}.mirtop.stats.log"
+        gffLog = "mirtop/logs/{sample}.mirtop.gff.log",
+        countLog = "mirtop/logs/{sample}.mirtop.counts.log",
+        statLog = "mirtop/logs/{sample}.mirtop.stats.log"
     shell: """
+
+        #----- Make logs subdirectory
+        mkdir -p mirtop/logs
 
         #----- Run miRtop GFF
         mirtop gff \
@@ -269,12 +296,29 @@ rule miRtop:
             --gff {output.mirtop_gff} \
             --gtf {params.hairpin_gff} > {log.countLog} 2>&1
 
-        #----- Run miRtop stats
-        #mirtop stats \
-        #   {params.sample}.hairpin.gff \
-        #    -o mirtop > {log.statLog} 2>&1
-           
 """
+
+#----- Rule to run mirtop stats
+rule mirtop_stats:
+    """
+    Run mirtop stats
+    """
+    input:
+        expand("mirtop/{sample}.hairpin.tsv", sample=sample_list)
+    conda: "env_config/mirtop.yaml"
+    resources:
+        cpus="10", 
+        maxtime="2:00:00", 
+        mem_mb="60gb",
+    message: "Getting mirtop stats"
+    shell: """
+
+        #----- Run mirtop stats
+        mirtop stats \
+            {input} \
+            -o mirtop
+    
+    """
 
 #----- Rule to pivot isomiRs longer
 rule pivot_isomirs_longer:
@@ -310,8 +354,8 @@ rule collate_isomir_table:
     input:
         expand("mirtop/temp/{sample}.hairpin_long.csv", sample=sample_list)
     output:
-        variantLevel = "mirtop/final_isomir_counts.csv",
-        miRNALevel = "mirtop/final_miRNA_counts.csv"
+        variantLevel = "miRNA_Quant/isomiRs/isomir_counts.csv",
+        miRNALevel = "miRNA_Quant/isomiRs/isomirs_collapsed_by_miRNA_counts.csv"
     conda: "env_config/r_env.yaml"
     resources:
         cpus="10", 
@@ -320,6 +364,9 @@ rule collate_isomir_table:
     message: "Collating isomir counts across samples."
     shell: """
     
+    #----- Make subdirectory
+    mkdir -p miRNA_Quant/isomiRs
+
     #----- Collate all counts files
     awk 'NR == 1 || FNR > 1' \
         {input} > "mirtop/temp/master_counts_long.csv"

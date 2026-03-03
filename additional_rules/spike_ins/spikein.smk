@@ -64,7 +64,7 @@ rule mappingBowtieSpikeIns:
         unmapped = "spikein_alignment/{sample}.unmapped.bowtie.fastq.gz"
     threads: 12
     resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
-    log:    "spikein_alignment/{sample}.log" 
+    log: "alignment_logs/spike-ins/{sample}.bowtie1.spikein.aln.log" 
     conda:
         "../../env_config/bowtie1.yaml"
     message: "Aligning {wildcards.sample} spike-in data with Bowtie"
