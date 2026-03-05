@@ -35,10 +35,8 @@ rule mirbase_dedup:
     """
     input: 
         mature = "mirbase_alignment/mature/{sample}.mature.srt.bam",
-        hairpin = "mirbase_alignment/hairpin/{sample}.hairpin.srt.bam"
     output:
         mature_dedup = "mirbase_alignment/mature/{sample}.mature.srt.dedup.bam",
-        hairpin_dedup = "mirbase_alignment/hairpin/{sample}.hairpin.srt.dedup.bam"
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie1_path = config["bowtie1_path"],
@@ -54,20 +52,10 @@ rule mirbase_dedup:
         dedup \
         --method=unique \
         -I {input.mature} \
-        -S {output.hairpin_dedup}
+        -S {output.mature_dedup}
 
     {params.samtools_path} \
-        index mirbase_alignment/mature/{sample}.mature.srt.dedup.bam
-
-    #----- Deduplicate hairpin and index
-    {params.umitools_path} \
-        dedup \
-        --method=unique \
-        -I {input.hairpin} \
-        -S {output.hairpin_dedup}
-
-    {params.samtools_path} \
-        index mirbase_alignment/hairpin/{sample}.hairpin.srt.dedup.bam
+        index {output.mature_dedup}
         
 """
 
@@ -76,9 +64,9 @@ rule genome_dedup:
     Deduplicate genome
     """
     input: 
-        "genome_alignment/{sample}.srt.filt.bam",
+        genAln = "genome_alignment/{sample}.genome.srt.filt.bam",
     output:
-        "genome_alignment/{sample}.srt.filt.dedup.bam",
+        genDedup = "genome_alignment/{sample}.genome.srt.filt.dedup.bam",
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie_path = config["bowtie_path"],
@@ -88,5 +76,11 @@ rule genome_dedup:
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
     message: "Deduplicating {wildcards.sample} genome reads."
     shell: """
-    {params.umitools_path} dedup --method=unique -I genome_alignment/{params.sample}.srt.filt.bam -S genome_alignment/{params.sample}.srt.filt.dedup.bam
+
+        #----- Deduplicate
+        {params.umitools_path} \
+            dedup \
+            --method=unique \
+            -I {input.genAln} \
+            -S {output.genDedup}
 """

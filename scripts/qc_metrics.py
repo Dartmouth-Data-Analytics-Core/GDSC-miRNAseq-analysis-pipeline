@@ -7,7 +7,7 @@ from pathlib import Path
 
 # ----- Functions -----
 def run_samtools_count(bam, include_flag=None, exclude_flag=None):
-    """Run samtools view and return count as int."""
+    """Run samtools view from Python and return count as int."""
     cmd = ["samtools", "view", bam, "-c"]
     if include_flag is not None:
         cmd.extend(["-f", str(include_flag)])
@@ -46,13 +46,14 @@ def parse_umi_log(logfile):
     return reads_before, reads_after, reads_removed
 
 # ----- Directories from command-line -----
-umi_dir = Path(sys.argv[1])     # logs/umi_reads
-mir_dir = Path(sys.argv[2])     # logs/mirbase_padded_aln
-genome_dir = Path(sys.argv[3])  # logs/genome_alignment
+umi_dir = Path(sys.argv[1])        # logs/umi_reads
+mir_dir = Path(sys.argv[2])        # logs/mirbase_padded_aln
+filt_mir_dir = Path(sys.argv[3])   # filtered miRBase BAMs
+genome_dir = Path(sys.argv[4])     # genome alignment logs
 
 # ----- Collect sample IDs -----
 sample_list = sorted([
-    Path(f).stem.replace(".umi", "").replace("_bowtie2", "").replace("_mirbase", "").replace("_genome", "")
+    Path(f).stem.replace(".umi", "").replace(".bowtie2", "").replace(".mature", "").replace(".genome", "")
     for f in glob(str(umi_dir / "*.log"))
 ])
 
@@ -70,14 +71,14 @@ for sample in sample_list:
 # ----- Parse miRBase logs -----
 mir_data = {}
 for sample in sample_list:
-    log_file = mir_dir / f"{sample}.bowtie2.log"
+    log_file = mir_dir / f"{sample}.bowtie2.mature.log"
     mapped, unaligned, multimap = parse_bowtie_log(log_file)
     mir_data[sample] = {"mapped": mapped, "multimap": multimap}
 
 # ----- Parse genome logs -----
 genome_data = {}
 for sample in sample_list:
-    log_file = genome_dir / f"{sample}.bowtie2.log"
+    log_file = genome_dir / f"{sample}.bowtie2.genome.log"
     mapped, unaligned, multimap = parse_bowtie_log(log_file)
     genome_data[sample] = {"mapped": mapped, "multimap": multimap}
 
@@ -123,8 +124,8 @@ metrics.loc["% of reads multimapping mirbase"] = (
     metrics.loc["# of UMI-containing reads"].astype(float) * 100
 ).round(2)
 
-# ----- Filtered miRBase BAMs -----
-filtered_bams = sorted(glob(str(mir_dir / "*.srt.bam")))
+# ----- Filtered miRBase BAMs (updated) -----
+filtered_bams = sorted(glob(str(filt_mir_dir / "*.mature.srt.bam")))
 metrics.loc["# of reads mapping to miRBase after filters"] = [
     run_samtools_count(bam, exclude_flag=4) for bam in filtered_bams
 ]
@@ -134,7 +135,7 @@ metrics.loc["% of reads mapping to miRBase after filters"] = (
 ).round(2)
 
 # ----- Genome BAMs -----
-genome_bams = sorted(glob(str(genome_dir / "*.srt.bam")))
+genome_bams = sorted(glob(str(genome_dir / "*.genome.srt.filt.bam")))
 metrics.loc["# of reads mapped genome"] = [
     run_samtools_count(bam, exclude_flag=4) for bam in genome_bams
 ]
@@ -149,7 +150,7 @@ metrics.loc["% of reads multimapping genome"] = (
 ).round(2)
 
 # ----- Deduplicated BAMs -----
-dedup_bams = sorted(glob(str(genome_dir / "*.srt.dedup.bam")))
+dedup_bams = sorted(glob(str(genome_dir / "*.genome.srt.filt.dedup.bam")))
 metrics.loc["# of reads after deduplication"] = [
     run_samtools_count(bam, exclude_flag=4) for bam in dedup_bams
 ]
@@ -159,8 +160,7 @@ metrics.loc["% of reads after deduplication"] = (
 ).round(2)
 
 # ----- FeatureCounts -----
-fc = pd.read_csv("genome_counts/featurecounts.readcounts.raw.tsv.summary",
-                 sep="\t", index_col=0)
+fc = pd.read_csv("genome_counts/featurecounts.tsv.summary", sep="\t", index_col=0)
 metrics.loc["# of reads assigned in featurecounts"] = fc.loc["Assigned"].tolist()
 metrics.loc["% of reads assigned in featurecounts"] = (
     metrics.loc["# of reads assigned in featurecounts"].astype(float) /

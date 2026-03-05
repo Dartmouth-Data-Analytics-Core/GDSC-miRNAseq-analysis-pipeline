@@ -6,14 +6,16 @@
 # TO DO
 # - Add script to collapse isomirs down to their family to provide a decent proxy for mature counts
 #
-# - Add in filtering:
-    # - map to padded ref --> clover-seq --> genome
-# - Edit input to spike-ins
-# - Normalization (merged output) - Check with Shannon
-# - Caitlin wants tRNA abundances explicitly...
-# - Figure out multiqc report, need to update versions
-# - Remove 5' isomirs, merged both w/ and w/o 5p' (how diverse are 3')
-# - String of isomir classes to include in merged counts (config) -- will need a separate script for this
+# TO-DO
+#--------
+# - From clover-seq gtf file, remove miRNA rows
+# - Find piRNA gff3
+#   - Convert gff3 to gtf
+#   - Find circRNA gtf
+#   - Append these to human genome gtf (try and remove multiple records?)
+#   - Align to mirBase mature, unaligned get mapped to human genome
+#   - Annotate genome hits with feature counts with "super gtf"
+# 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import pandas as pd
 import pprint
@@ -61,29 +63,26 @@ all_inputs += expand("mirbase_alignment/{sample}.mature.srt.bam.idxstats", sampl
 all_inputs += expand("mirbase_alignment/{sample}.mature.srt.bam.flagstat", sample=sample_list)
 all_inputs += ["miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv"]
 
-#----- Contamination filtering
-all_inputs += expand("contamination/{sample}.contam.srt.bam", sample=sample_list)
-all_inputs += expand("contamination/{sample}.contam.unaligned.fastq", sample=sample_list)
-all_inputs += [
-    "contamination/counts/smRNA_raw_counts_by_group.txt",
-    "contamination/counts/smRNA_raw_counts_by_sample.txt",
-    "contamination/counts/subroup_counts.txt"]
-
 #----- mirtop outputs
 all_inputs += expand("mirtop/{sample}.hairpin.gff", sample=sample_list)
 all_inputs += expand("mirtop/temp/{sample}.hairpin_long.csv", sample=sample_list)
 all_inputs += ["mirtop/mirtop_stats.log"]
 
 #----- Genome alignment and featureCounts (always included)
-all_inputs += expand("genome_alignment/{sample}.srt.bam", sample=sample_list)
-all_inputs += expand("genome_alignment/{sample}.srt.filt.bam", sample=sample_list)
+all_inputs += expand("genome_alignment/{sample}.genome.srt.filt.bam", sample=sample_list)
 if USE_UMITOOLS:
-    all_inputs += expand("genome_alignment/{sample}.srt.filt.dedup.bam", sample=sample_list)
+    all_inputs += expand("genome_alignment/{sample}.genome.srt.filt.dedup.bam", sample=sample_list)
 all_inputs += [
-    "genome_counts/featurecounts.readcounts.ann.tsv",
-    "genome_counts/featurecounts.readcounts_tpm.tsv",
-    "genome_counts/featurecounts.readcounts_tpm.ann.tsv"]
-    #"metrics/mirna_genome_alignment_metrics.tsv"]
+    "genome_counts/featurecounts.tsv",
+    "genome_counts/featurecounts.readcounts.tsv",
+    "genome_counts/featurecounts.readcounts.biotype.tsv",
+    "metrics/mirna_genome_alignment_metrics.tsv",
+    "metrics/mirna_genome_alignment_metrics.xlsx"]
+
+#----- PCA
+all_inputs += [
+    "plots/PCA_top_PC1_vs_PC2.png",
+    "plots/PCA_top_PCA_variance_bar.png"]
 
 #----- Spike-in outputs (optional)
 if USE_SPIKEINS:
@@ -91,9 +90,6 @@ if USE_SPIKEINS:
     all_inputs += [
         "spikein_counts/spikein.readcounts.tsv",
         "spikein_metrics/normalized_scalefactor_mirbase_counts.tsv"]
-
-#----- Plots (always included)
-all_inputs += ["plots/PCA_1_vs_2.png"]
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # PIPELINE
@@ -377,6 +373,33 @@ rule collate_isomir_table:
         miRNA_Quant/
     
     
+    """
+
+#----- Rule to run PCA
+rule pca_plots:
+    """
+    Run PCA on the isomir data
+    """
+    input: 
+        "miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv",
+    output:
+        "plots/PCA_top_PC1_vs_PC2.png",
+        "plots/PCA_top_PCA_variance_bar.png",
+    conda:
+        "env_config/pcaplot.yaml",
+    params:
+        pca_plot_script = config['pca_plot_script'],   
+    resources: cpus="1", maxtime="1:00:00", mem_mb=2000,
+    message: "Running PCA"
+    shell: """
+
+        #----- Create directory
+        mkdir -p plots
+
+        #----- Run PCA script
+        python scripts/pca_plotting.py \
+            {input} \
+            plots
     """
 
 

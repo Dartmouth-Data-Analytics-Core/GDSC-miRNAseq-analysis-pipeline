@@ -43,12 +43,12 @@ hairpin_fa: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v
 
 #-------------------------------------------#
 # Zebrafish Reference File Paths (Bowtie2)
+# Note: Bowtie2 index needs to be GRCz11 to match super gtf for annotation
 #-------------------------------------------#
 padded_mature_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/snakemake/mirna-seq/DAC-RNAseq-pipeline/refs/mirbase_mature_drerio-padded/mirbase_mature_drerio-padded"
-bowtie2_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/D_rerio/bowtie2-index-lawson/danRer11"
-annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/D_rerio/V4.3.2.validated.gtf"
-tRNA_database: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/tRAX_databases/DanRer11_db"
-tRNA_bowtie2_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/tRAX_databases/DanRer11_db/bt2_index/db-tRNAgenome"
+bowtie2_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/D_rerio/bowtie2-index/GRCz11"
+#annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/D_rerio/V4.3.2.validated.gtf"
+annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/dre/DanRer11_smRNAs_super_sorted.gtf"
 
 
 #-------------------------------------------#

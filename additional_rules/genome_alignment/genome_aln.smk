@@ -1,18 +1,6 @@
 #----- Import libraries
 import csv
 
-#----- Generate run file which is required for clover-seq rules
-def generate_runfile(sample_file):
-    with open(sample_file, 'r') as infile, open("runfile.txt", 'w') as outfile:
-        reader = csv.DictReader(infile)
-        for row in reader:
-            sample_id = row["sample_id"]
-            group = "dummy"   # <- hardcoded value
-            outfile.write(f"{sample_id} {group} contamination\n")
-
-#----- Run function
-generate_runfile(config["sample_csv"])
-
 #----- Function selecting input FASTQ file for alignment
 def get_alignment_input(wildcards):
     if USE_UMITOOLS:
@@ -35,7 +23,7 @@ rule mirbase_padded_aln:
         bowtie2_path = config["bowtie2_path"],
         padded_mature_index = config["padded_mature_index"],
         samtools_path = config["samtools_path"]
-    threads: 8
+    threads: 12
     resources: 
         maxtime="2:00:00", 
         mem_mb="60gb",
@@ -46,7 +34,7 @@ rule mirbase_padded_aln:
         #----- Make logs subdirectory
         mkdir -p alignment_logs/mirbase_mature_padded
 
-        #----- Run Bowtie1 with unpadded reference
+        #----- Align with Bowtie2 to padded reference
         {params.bowtie2_path} \
             -x {params.padded_mature_index} \
             -U {input} \
@@ -57,30 +45,33 @@ rule mirbase_padded_aln:
             -N 1 \
             -L 12 \
             -i S,1,0.50 \
-            --un mirbase_alignment/{params.sample}.mature.unalign.fastq \
-            -S mirbase_alignment/{params.sample}.aln.sam 2> {log}
+            --un {output.unaligned} \
+            -S mirbase_alignment/{params.sample}.mature.aln.sam 2> {log}
 
         #----- Subset reads for aligned length > 16 & < 28bp & any reads with gaps (XO/XG tags)
-        {params.samtools_path} view -h mirbase_alignment/{params.sample}.aln.sam | \
+        {params.samtools_path} \
+            view -h mirbase_alignment/{params.sample}.mature.aln.sam | \
             awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ((length($10) > 16 && length($10) <= 28) && ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/)) {{print $0}}' | \
-            samtools view -Sb - > mirbase_alignment/{params.sample}.bam
-
+            samtools view -Sb -o mirbase_alignment/{params.sample}.mature.bam
+        
         #----- Filter for any reads with MAPQ <=1
-        {params.samtools_path} view -h -q 2 mirbase_alignment/{params.sample}.bam > mirbase_alignment/{params.sample}.sub.bam
+        {params.samtools_path} \
+            view -h -q 2 mirbase_alignment/{params.sample}.mature.bam > mirbase_alignment/{params.sample}.mature.sub.bam
         
         #----- Filter for any reads with > 2 mismatches 
-        {params.samtools_path} view -h mirbase_alignment/{params.sample}.sub.bam | \
+        {params.samtools_path} \
+            view -h mirbase_alignment/{params.sample}.mature.sub.bam | \
             awk 'BEGIN {{OFS="\t"}} /^@/ || ($0 ~ /NM:i:[0-2]($|\t)/)' | \
-            samtools view -b > mirbase_alignment/{params.sample}.sub2.bam
+            samtools view -b > mirbase_alignment/{params.sample}.mature.sub2.bam
         
         #----- Sort and index BAM file 
-        {params.samtools_path} sort -@ 4 mirbase_alignment/{params.sample}.sub2.bam > mirbase_alignment/{params.sample}.mature.srt.bam
-        {params.samtools_path} index mirbase_alignment/{params.sample}.mature.srt.bam
+        {params.samtools_path} sort -@ 4 mirbase_alignment/{params.sample}.mature.sub2.bam > {output.aligned}
+        {params.samtools_path} index {output.aligned}
 
-        #----- Remove intermediate bam files 
-        rm -rf mirbase_alignment/{params.sample}.bam
-        rm -rf mirbase_alignment/{params.sample}.sub.bam
-        rm -rf mirbase_alignment/{params.sample}.sub2.bam 
+        # remove intermediate bam files 
+        rm -rf mirbase_alignment/{params.sample}.mature.bam
+        rm -rf mirbase_alignment/{params.sample}.mature.sub.bam
+        rm -rf mirbase_alignment/{params.sample}.mature.sub2.bam 
 
 """
 
@@ -113,33 +104,151 @@ rule mature_mirbase_stats:
     {params.samtools_path} flagstat {input.matureStats} > {output.mature_flagstat}
 """
 
-#----- Rule to count miRNAs (mature only)
-rule mirbase_count:
+#----- Rule to map unaligned to genome
+rule genome_alignment:
     """
-    Count miRNAs
+    Map reads that did not align to padded mature to genome
     """
     input:
-        expand("mirbase_alignment/{sample}.mature.srt.bam.idxstats", sample=sample_list),
+        unaligned = "mirbase_alignment/{sample}.mature.unalign.fastq"
     output:
-        rawCounts = "miRNA_Quant/mature/mature_mirbase.readcounts.tsv",
-        tpmCount = "miRNA_Quant/mature/mature_mirbase.readcounts_tpm.tsv",
-    resources: 
-        cpus="10", 
+        genomeAln = "genome_alignment/{sample}.genome.srt.filt.bam"
+    params:
+        sample = lambda wildcards:  wildcards.sample,
+        bowtie2_path = config["bowtie2_path"],
+        bowtie2_genome_index = config["bowtie2_genome_index"],
+        samtools_path = config["samtools_path"]
+    threads: 12
+    resources:
         maxtime="2:00:00", 
         mem_mb="60gb",
-    message: "Counting mature miRNAs."
+    message: "Aligning {wildcards.sample} mature unaligned reads to genome."
+    log: "alignment_logs/genome/{sample}.bowtie2.genome.log"
+    shell: """
+    
+        #----- Align mature unaligned reads to genome with bowtie2
+        {params.bowtie2_path} \
+            -x {params.bowtie2_genome_index} \
+            -U {input.unaligned} \
+            -p {threads} \
+            --very-sensitive \
+            -S genome_alignment/{params.sample}.genome.aln.sam 2> {log}
+        
+        #----- Convert to bam
+        {params.samtools_path} \
+            view -Sb genome_alignment/{params.sample}.genome.aln.sam | \
+            {params.samtools_path} sort -@ 4 -o genome_alignment/{params.sample}.genome.srt.bam
+
+        #----- Filter
+        {params.samtools_path} \
+            view -h genome_alignment/{params.sample}.genome.srt.bam | \
+            awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/) {{print $0}}' | \
+            {params.samtools_path} view -Sb -o {output.genomeAln}
+
+        #----- Index
+        {params.samtools_path} index {output.genomeAln}
+    """
+    
+#----- Define function selecting input BAM file for featurecounts
+def get_genome_featureCounts_input(wildcards):
+    if USE_UMITOOLS:
+        return expand("genome_alignment/{sample}.genome.srt.filt.dedup.bam", sample=sample_list)
+    return expand("genome_alignment/{sample}.genome.srt.filt.bam", sample=sample_list)
+
+#----- Rule to run featurecounts on genome alignment
+rule genome_featureCounts:
+    """
+    Assign genome reads to features
+    """
+    input:
+        genAln = get_genome_featureCounts_input
+    output:
+        rawCounts = "genome_counts/featurecounts.tsv",
+        cleanCounts = "genome_counts/featurecounts.readcounts.tsv",
+        biotype = "genome_counts/featurecounts.readcounts.biotype.tsv"
+    params:
+        featurecounts_path = config["featurecounts_path"],
+        layout = config["layout"],
+        pair_flag = "-p" if config["layout"]=="paired" else "",
+        featurecounts_strand = config["featurecounts_strand"],
+        annotation_gtf = config["annotation_gtf"]
+    threads: 32
+    resources:
+        cpus = "10",
+        maxtime = "8:00:00",
+        mem_mb = "100gb"
+    message: "Running featurecounts on genome alignments."
+    shell: """
+    
+        #----- Run FeatureCounts
+        {params.featurecounts_path} \
+            -T {threads} \
+            -Q 10 \
+            {params.pair_flag} \
+            -s 0 \
+            -a {params.annotation_gtf} \
+            -o {output.rawCounts} \
+            {input.genAln}
+        
+        #----- Combine counts
+        sed s/"genome_alignment\/"//g {output.rawCounts}| sed s/".genome.srt.filt.bam"//g| tail -n +2 > {output.cleanCounts}
+        
+        #----- Add annotation
+        python scripts/add_biotype.py \
+            {output.cleanCounts} \
+            {params.annotation_gtf} \
+            {output.biotype}
+
+        #----- Normalize
+        python scripts/readcnt_to_rpkmtpm.py \
+            {output.biotype} \
+            {params.layout}
+
+    
+    """
+
+#----- Rule to get alignment metrics
+rule alignment_metrics_counts:
+    """
+    Get alignment metrics
+    """
+    input:  
+        expand("genome_alignment/{sample}.genome.srt.filt.bam", sample=sample_list),
+        expand("genome_alignment/{sample}.genome.srt.filt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
+        expand("mirbase_alignment/{sample}.mature.srt.bam", sample=sample_list),
+        expand("mirbase_alignment/{sample}.mature.srt.dedup.bam", sample=sample_list) if USE_UMITOOLS else [],
+        biotypes = "genome_counts/featurecounts.readcounts.biotype.tsv"
+    output: 
+        "metrics/mirna_genome_alignment_metrics.tsv",
+        "metrics/mirna_genome_alignment_metrics.xlsx",
+    conda:
+        "../../env_config/featurecounts.yaml",
+    params:
+        use_umi = USE_UMITOOLS,
+    resources: cpus="1", maxtime="8:00:00", mem_mb="2gb",
+    message: "Calculating metrics"
     shell: """
 
-    #----- Make subdirectory
-    mkdir -p miRNA_Quant/mature
+        #----- Create directory
+        mkdir -p metrics
 
-    #----- Collate counts
-    echo -ne mirbase_ID"\t"Length"\t" > miRNA_Quant/mature/mature_mirbase.readcounts.tsv
-    echo {input} | tr " " "\t"| sed s/"mirbase_alignment\/"//g| sed s/".srt.bam.idxstats"//g >> miRNA_Quant/mature/mature_mirbase.readcounts.tsv
-    paste {input}| awk -f scripts/mirbase_counts.awk >> miRNA_Quant/mature/mature_mirbase.readcounts.tsv
+        #----- Calculate mapping metrics
+        if [ "{params.use_umi}" = "true" ]; then
+            python scripts/qc_metrics-umi.py \
+                umi_reads \
+                alignment_logs/mirbase_mature_padded \
+                mirbase_alignment \
+                alignment_logs/genome_alignment
+        else
+            python scripts/qc_metrics-non-umi.py \
+                alignment_logs/mirbase_mature_padded \
+                mirbase_alignment \
+                alignment_logs/genome_alignment
+        fi
 
-    #----- Run TPM normalization 
-    python scripts/mirbase-readcnt_to_tpm.py miRNA_Quant/mature/mature_mirbase.readcounts.tsv
+        #----- Calculate biotype metrics
+        python scripts/gene_biotype_metrics.py \
+            {input.biotypes}
 """
 
 
