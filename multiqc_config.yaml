@@ -1,48 +1,33 @@
-report_header_info:
-  - Contact E-mail:  DataAnalyticsCore@groups.dartmouth.edu
-  - Application Type: "miRNA-seq"
-
-
-extra_fn_clean_trim:
-  - "_genome.log.txt"
-  - "_mirbase.log.txt"
-  - ".srt.dedup.filt.bam"
-  - ".umi.fastq.gz"
-  - ".umi"
-
-use_filename_as_sample_name:
-  - bowtie2
-
-sp:
-  bowtie2:
-    - fn: "*_genome.log.txt"
-    - fn: "*_mirbase.log.txt"
+export_plots: false
+disable_version_detection: true
 
 module_order:
-  - "fastqc"
-  - "star"
-  - "samtools"
-  - "picard"
-  - "featurecounts"
-  - "rsem"
+  - bowtie1:
+      name: "Bowtie1 / Seqcluster"
+      info: "Alignment summary from Bowtie1 (Seqcluster)."
+      path_filters:
+        - "alignment_logs/seqcluster/*"
+  - bowtie2:
+      name: "miRbase Mature mapping (Padded Reference)"
+      info: "Alignment summary of reads to miRbase mature padded reference using Bowtie2."
+      path_filters:
+        - "alignment_logs/mirbase_mature_padded/*"
+  - bowtie2:
+      name: "Genome alignment"
+      info: "Alignment summary of reads to genome using Bowtie2."
+      path_filters:
+        - "alignment_logs/genome_alignment/*"
+      anchor: "bowtie2_genome"
+  - mirtop:
+      name: "miRNA Quantification (mirtop)"
+      info: "Summary statistics from mirtop for miRNA quantification."
+      path_filters:
+        - "mirtop/mirtop_stats.log"
 
-report_section_order:
-    fastqc:
-        order: 1000
-    star:
-        order: 950
-    picard:
-        order: 900
-    Samtools:
-        order: 850
-    featurecounts:
-        order: 750
-        
-table_columns_visible:
-  featureCounts: False  
-  Samtools: False
-
-fn_ignore_files:
-  - "*.flagstat"
-  - "*.idxstats"
-
+sp:
+  bowtie1:
+    fn: "*"
+  bowtie2:
+    fn: "*"
+  mirtop:
+    fn: "*mirtop_stats.log"  # Changed to match files with OR without prefix

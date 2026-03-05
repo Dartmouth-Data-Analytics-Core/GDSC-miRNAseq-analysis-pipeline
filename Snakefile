@@ -107,32 +107,25 @@ rule all:
         all_inputs
     output:
         "multiqc_report.html",
-        "fastQC/trimmed_fastqc_report.html"       
     conda:
         "env_config/multiqc.yaml",
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
     params:
         multiqc=config["multiqc_path"],
-        use_umi = USE_UMITOOLS,
+        use_umi = USE_UMITOOLS
     shell: """
-
-        #----- Run multiqc on fastq results
-        multiqc \
-            fastQC \
-            -c fastQC/fastqc_multiqc_config.yaml
-        mv multiqc_report.html fastQC/trimmed_fastq_report.html &&
-        mv multiqc_data fastQC/multiqc_data &&
 
         #----- Run multiqc
         if [ "{params.use_umi}" = "true" ]; then
-            {params.multiqc} -v -c multiqc_config.yaml \
+            multiqc -v --force -c multiqc_config.yaml \
                 alignment_logs/mirbase_mature_padded \
                 alignment_logs/genome_alignment \
                 mirbase_alignment \
                 genome_counts \
+                mitop \
                 umi_reads
         else
-            {params.multiqc} -v -c multiqc_config.yaml \
+            multiqc -v --force -c multiqc_config.yaml \
                 alignment_logs/mirbase_mature_padded \
                 alignment_logs/genome_alignment \
                 mirbase_alignment \
@@ -141,7 +134,7 @@ rule all:
         fi
 
         #----- Clean
-        if [ -d "mirtop/log" ];
+        if [ -d "mirtop/log" ]; then
             rm -r mirtop/log
         fi
 
