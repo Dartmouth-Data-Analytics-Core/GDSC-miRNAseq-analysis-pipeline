@@ -46,7 +46,7 @@ rule mirbase_padded_aln:
             -L 12 \
             -i S,1,0.50 \
             --un {output.unaligned} \
-            -S mirbase_alignment/{params.sample}.mature.aln.sam 2> {log}
+            -S mirbase_alignment/{params.sample}.mature.aln.sam > {log}
 
         #----- Subset reads for aligned length > 16 & < 28bp & any reads with gaps (XO/XG tags)
         {params.samtools_path} \
@@ -123,7 +123,7 @@ rule genome_alignment:
         maxtime="2:00:00", 
         mem_mb="60gb",
     message: "Aligning {wildcards.sample} mature unaligned reads to genome."
-    log: "alignment_logs/genome/{sample}.bowtie2.genome.log"
+    log: "alignment_logs/genome_alignment/{sample}.bowtie2.genome.log"
     shell: """
     
         #----- Align mature unaligned reads to genome with bowtie2
@@ -132,7 +132,7 @@ rule genome_alignment:
             -U {input.unaligned} \
             -p {threads} \
             --very-sensitive \
-            -S genome_alignment/{params.sample}.genome.aln.sam 2> {log}
+            -S genome_alignment/{params.sample}.genome.aln.sam > {log}
         
         #----- Convert to bam
         {params.samtools_path} \

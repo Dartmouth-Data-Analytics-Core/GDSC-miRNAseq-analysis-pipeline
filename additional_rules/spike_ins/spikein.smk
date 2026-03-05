@@ -86,10 +86,10 @@ rule normalize_data_spikein:
     """
     input:
         spikein = "spikein_counts/spikein.readcounts.tsv",
-        mirbase_counts = "mirbase_counts/mirbase.readcounts.tsv"
+        mirbase_counts = "miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv"
     output:
         "spikein_metrics/spikein_detection_metrics.tsv",
-        "spikein_metrics/normalized_scalefactor_mirbase_counts.tsv"
+        "spikein_metrics/normalized_scalefactor_canon_and_isomir_counts.tsv"
     conda:
         "../../env_config/r_env.yaml"
     resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",

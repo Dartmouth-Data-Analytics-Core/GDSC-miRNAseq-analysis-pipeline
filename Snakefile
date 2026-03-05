@@ -35,6 +35,7 @@ sample_list = list(samples_df['sample_id'])
 
 #----- Include additional rules
 include: "additional_rules/genome_alignment/genome_aln.smk"
+include: "additional_rules/QC/qc.smk"
 if USE_SPIKEINS:
     include: "additional_rules/spike_ins/spikein.smk"
 if USE_UMITOOLS:
@@ -45,6 +46,11 @@ all_inputs = []
 
 #----- Trimming
 all_inputs += expand("trimming/{sample}.R1.trim.fastq.gz", sample=sample_list)
+
+#----- QC
+all_inputs += ["fastQC/fastqc_multiqc_config.yaml"]
+all_inputs += expand("fastQC/{sample}.R1.trim_fastqc.html", sample=sample_list)
+all_inputs += expand("fastQC/{sample}.R1.trim_fastqc.zip", sample=sample_list)
 
 #----- UMI deduplication outputs (optional)
 if USE_UMITOOLS:
@@ -89,7 +95,7 @@ if USE_SPIKEINS:
     all_inputs += expand("spikein_alignment/{sample}.unmapped.bowtie.fastq.gz", sample=sample_list)
     all_inputs += [
         "spikein_counts/spikein.readcounts.tsv",
-        "spikein_metrics/normalized_scalefactor_mirbase_counts.tsv"]
+        "spikein_metrics/normalized_scalefactor_canon_and_isomir_counts.tsv"]
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # PIPELINE
@@ -100,7 +106,8 @@ rule all:
     input:
         all_inputs
     output:
-        "multiqc_report.html"          
+        "multiqc_report.html",
+        "fastQC/trimmed_fastqc_report.html"       
     conda:
         "env_config/multiqc.yaml",
     resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
@@ -108,15 +115,35 @@ rule all:
         multiqc=config["multiqc_path"],
         use_umi = USE_UMITOOLS,
     shell: """
+
+        #----- Run multiqc on fastq results
+        multiqc \
+            fastQC \
+            -c fastQC/fastqc_multiqc_config.yaml
+        mv multiqc_report.html fastQC/trimmed_fastq_report.html &&
+        mv multiqc_data fastQC/multiqc_data &&
+
+        #----- Run multiqc
         if [ "{params.use_umi}" = "true" ]; then
-            {params.multiqc} -v -c multiqc_config.yaml genome_alignment mirbase_alignment genome_counts mirbase_counts umi_reads
+            {params.multiqc} -v -c multiqc_config.yaml \
+                alignment_logs/mirbase_mature_padded \
+                alignment_logs/genome_alignment \
+                mirbase_alignment \
+                genome_counts \
+                umi_reads
         else
-            {params.multiqc} -v -c multiqc_config.yaml genome_alignment mirbase_alignment genome_counts mirbase_counts
+            {params.multiqc} -v -c multiqc_config.yaml \
+                alignment_logs/mirbase_mature_padded \
+                alignment_logs/genome_alignment \
+                mirbase_alignment \
+                genome_counts \
+                mirtop
         fi
 
         #----- Clean
-        rm -r mirtop/log
-        rm -r 
+        if [ -d "mirtop/log" ];
+            rm -r mirtop/log
+        fi
 
 """
 
