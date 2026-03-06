@@ -46,7 +46,7 @@ rule mirbase_padded_aln:
             -L 12 \
             -i S,1,0.50 \
             --un {output.unaligned} \
-            -S mirbase_alignment/{params.sample}.mature.aln.sam > {log}
+            -S mirbase_alignment/{params.sample}.mature.aln.sam 2> {log}
 
         #----- Subset reads for aligned length > 16 & < 28bp & any reads with gaps (XO/XG tags)
         {params.samtools_path} \
@@ -132,7 +132,7 @@ rule genome_alignment:
             -U {input.unaligned} \
             -p {threads} \
             --very-sensitive \
-            -S genome_alignment/{params.sample}.genome.aln.sam > {log}
+            -S genome_alignment/{params.sample}.genome.aln.sam 2> {log}
         
         #----- Convert to bam
         {params.samtools_path} \
@@ -148,6 +148,36 @@ rule genome_alignment:
         #----- Index
         {params.samtools_path} index {output.genomeAln}
     """
+
+#----- Define function selecting input BAM file for mirbase_stats (mature and hairpin)
+def get_genome_stats_input(wildcards):
+    if USE_UMITOOLS:
+        return f"genome_alignment/{wildcards.sample}.genome.srt.filt.dedup.bam"
+    return f"genome_alignment/{wildcards.sample}.genome.srt.filt.bam"
+
+#----- Rule to get genome stats
+rule genome_stats:
+    """
+    Collate stats for genome alignments
+    """
+    input: 
+        genomeStats = get_genome_stats_input,
+    output:
+        genome_idx = "genome_alignment/{sample}.genome.srt.filt.bam.idxstats",
+        genome_flagstat = "mirbase_alignment/{sample}.genome.srt.filt.bam.flagstat",
+    params:
+        sample = lambda wildcards:  wildcards.sample,
+        samtools_path = config["samtools_path"],
+    resources: 
+        cpus="10", 
+        maxtime="2:00:00", 
+        mem_mb="60gb",
+    message: "Collating {wildcards.sample} mirbase stats with Samtools"
+    shell: """
+    {params.samtools_path} idxstats {input.genomeStats} > {output.genome_idx}
+    {params.samtools_path} flagstat {input.genomeStats} > {output.genome_flagstat}
+"""
+
     
 #----- Define function selecting input BAM file for featurecounts
 def get_genome_featureCounts_input(wildcards):

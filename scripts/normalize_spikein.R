@@ -243,14 +243,14 @@ mirna_normalized <- mirna_long %>%
     interval = round(fit - lwr, 2)
   ) %>%
   ungroup() %>%
-  select(miRNA, Length, sample_id, reads, molecules_concentration)
+  select(miRNA, sample_id, reads, molecules_concentration)
 
 # Export normalized miRNA table (wide format)
 mirna_normalized %>%
   pivot_wider(
     names_from = sample_id,
     values_from = molecules_concentration,
-    id_cols = c(miRNA, Length),
+    id_cols = c(miRNA),
     values_fill = 0
   ) %>%
   write_tsv("spikein_metrics/normalized_scalefactor_canon_and_isomir_counts.tsv")
