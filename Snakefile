@@ -8,14 +8,9 @@
 #
 # TO-DO
 #--------
-# - From clover-seq gtf file, remove miRNA rows
-# - Find piRNA gff3
-#   - Convert gff3 to gtf
-#   - Find circRNA gtf
-#   - Append these to human genome gtf (try and remove multiple records?)
-#   - Align to mirBase mature, unaligned get mapped to human genome
-#   - Annotate genome hits with feature counts with "super gtf"
-# 
+#
+# - Add fastqc report back into QC.smk
+# - Add idxstats for the seqcluster counts
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import pandas as pd
 import pprint
@@ -126,11 +121,12 @@ rule all:
                 umi_reads
         else
             multiqc -v --force -c multiqc_config.yaml \
-                alignment_logs/mirbase_mature_padded \
+                alignment_logs/seqcluster \
                 alignment_logs/genome_alignment \
                 mirbase_alignment \
                 genome_counts \
-                mirtop
+                mirtop \
+                metrics
         fi
 
         #----- Clean

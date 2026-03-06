@@ -120,10 +120,17 @@ metrics.loc["% of reads multimapping genome"] = (
 ).round(2)
 
 # ----- FeatureCounts assignment -----
+# ----- FeatureCounts -----
 fc = pd.read_csv("genome_counts/featurecounts.tsv.summary", sep="\t", index_col=0)
+
+# Extract sample names from BAM paths
+fc.columns = [Path(c).name.replace(".genome.srt.filt.bam", "") for c in fc.columns]
+
+# Assign counts by matching sample names
 metrics.loc["# of reads assigned in featurecounts"] = [
-    fc.loc["Assigned", s] if s in fc.columns else 0 for s in sample_list
+    fc.loc["Assigned"].get(sample, 0) for sample in sample_list
 ]
+
 metrics.loc["% of reads assigned in featurecounts"] = (
     metrics.loc["# of reads assigned in featurecounts"].astype(float) /
     metrics.loc["# of reads"].astype(float) * 100

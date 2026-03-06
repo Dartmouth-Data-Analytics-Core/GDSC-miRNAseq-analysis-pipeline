@@ -161,7 +161,15 @@ metrics.loc["% of reads after deduplication"] = (
 
 # ----- FeatureCounts -----
 fc = pd.read_csv("genome_counts/featurecounts.tsv.summary", sep="\t", index_col=0)
-metrics.loc["# of reads assigned in featurecounts"] = fc.loc["Assigned"].tolist()
+
+# Extract sample names from BAM paths
+fc.columns = [Path(c).name.replace(".genome.srt.filt.bam", "") for c in fc.columns]
+
+# Assign counts by matching sample names
+metrics.loc["# of reads assigned in featurecounts"] = [
+    fc.loc["Assigned"].get(sample, 0) for sample in sample_list
+]
+
 metrics.loc["% of reads assigned in featurecounts"] = (
     metrics.loc["# of reads assigned in featurecounts"].astype(float) /
     metrics.loc["# of UMI-containing reads"].astype(float) * 100

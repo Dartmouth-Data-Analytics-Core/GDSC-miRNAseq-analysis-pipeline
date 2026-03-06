@@ -1,12 +1,38 @@
 export_plots: false
 disable_version_detection: true
 
+# Disable default top_modules behavior
+top_modules: []
+
+# Default to plot view instead of table
+table_columns_visible:
+  general_stats: false
+
+# Customize number formatting for General Statistics
+general_stats_columns:
+  - total_reads:
+      format: '{:,.0f}'  # Show full numbers with commas, no decimals
+  - mapped_reads:
+      format: '{:,.0f}'
+  - featureCounts:
+      Assigned:
+        format: '{:,.0f}'
+
 module_order:
+  - custom_content:  # Add this to control where your custom section appears
+      name: "Small RNA Biotype Statistics"
   - bowtie1:
       name: "Bowtie1 / Seqcluster"
       info: "Alignment summary from Bowtie1 (Seqcluster)."
       path_filters:
         - "alignment_logs/seqcluster/*"
+  - mirtop:
+      name: "miRNA Quantification (mirtop)"
+      info: "Summary statistics from mirtop for miRNA quantification."
+      path_filters:
+        - "mirtop/mirtop_stats.log"
+  - samtools
+  - featureCounts
   - bowtie2:
       name: "miRbase Mature mapping (Padded Reference)"
       info: "Alignment summary of reads to miRbase mature padded reference using Bowtie2."
@@ -18,11 +44,6 @@ module_order:
       path_filters:
         - "alignment_logs/genome_alignment/*"
       anchor: "bowtie2_genome"
-  - mirtop:
-      name: "miRNA Quantification (mirtop)"
-      info: "Summary statistics from mirtop for miRNA quantification."
-      path_filters:
-        - "mirtop/mirtop_stats.log"
 
 sp:
   bowtie1:
@@ -30,4 +51,21 @@ sp:
   bowtie2:
     fn: "*"
   mirtop:
-    fn: "*mirtop_stats.log"  # Changed to match files with OR without prefix
+    fn: "*mirtop_stats.log"
+  smrna_biotype:  # Add this to help MultiQC find your custom content file
+    fn: "*_mqc.tsv"
+    contents: "smrna_biotype"
+
+# Custom content configuration (optional - only if you want to override defaults)
+# If you're using the _mqc.tsv file with embedded headers, you don't need this section
+# But you can use it to add additional customization
+custom_data:
+  smrna_biotype_metrics:
+    file_format: 'tsv'
+    section_name: 'Small RNA Biotype Statistics'
+    description: 'Distribution of small RNA reads across different gene biotypes. Toggle between table and violin plot views to compare distributions.'
+    plot_type: 'table'
+    pconfig:
+      id: 'smrna_biotype_table'
+      title: 'Small RNA Gene Biotype Counts and Percentages'
+      save_file: true
