@@ -112,7 +112,9 @@ rule all:
 
         #----- Run multiqc
         if [ "{params.use_umi}" = "true" ]; then
-            multiqc -v --force -c multiqc_config.yaml \
+            multiqc -v --force \
+                -n multiqc_report.html \
+                -c multiqc_config.yaml \
                 alignment_logs/mirbase_mature_padded \
                 alignment_logs/genome_alignment \
                 mirbase_alignment \
@@ -120,7 +122,10 @@ rule all:
                 mitop \
                 umi_reads
         else
-            multiqc -v --force -c multiqc_config.yaml \
+            multiqc -v --force \
+                -c multiqc_config.yaml \
+                -n multiqc_report.html \
+                fastQC \
                 alignment_logs/seqcluster \
                 alignment_logs/genome_alignment \
                 mirbase_alignment \
@@ -134,6 +139,9 @@ rule all:
             rm -r mirtop/log
         fi
 
+        if [ -d "collapsed/log" ]; then
+            rm -r collapsed/log
+        fi
 """
 
 #----- Rule to execute trimming
