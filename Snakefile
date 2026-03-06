@@ -54,6 +54,8 @@ if USE_UMITOOLS:
 #----- Seqcluster collapsed reads
 all_inputs += expand("collapsed/{sample}.seqcluster.fastq.gz", sample=sample_list)
 all_inputs += expand("collapsed/{sample}.seqcluster.hairpin.aln.srt.bam", sample=sample_list)
+all_inputs += expand("collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.idxstats", sample=sample_list)
+all_inputs += expand("collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.flagstat", sample=sample_list)
 
 #----- miRBase alignment and metrics (always included)
 all_inputs += expand("mirbase_alignment/{sample}.mature.srt.bam", sample=sample_list)
@@ -71,6 +73,9 @@ all_inputs += ["mirtop/mirtop_stats.log"]
 
 #----- Genome alignment and featureCounts (always included)
 all_inputs += expand("genome_alignment/{sample}.genome.srt.filt.bam", sample=sample_list)
+all_inputs += expand("genome_alignment/{sample}.genome.srt.filt.bam.idxstats", sample=sample_list)
+all_inputs += expand("mirbase_alignment/{sample}.genome.srt.filt.bam.flagstat", sample=sample_list)
+
 if USE_UMITOOLS:
     all_inputs += expand("genome_alignment/{sample}.genome.srt.filt.dedup.bam", sample=sample_list)
 all_inputs += [
@@ -117,7 +122,8 @@ rule all:
                 -c multiqc_config.yaml \
                 alignment_logs/mirbase_mature_padded \
                 alignment_logs/genome_alignment \
-                mirbase_alignment \
+                collapsed \
+                genome_alignment \
                 genome_counts \
                 mitop \
                 umi_reads
@@ -128,7 +134,8 @@ rule all:
                 fastQC \
                 alignment_logs/seqcluster \
                 alignment_logs/genome_alignment \
-                mirbase_alignment \
+                collapsed \
+                genome_alignment \
                 genome_counts \
                 mirtop \
                 metrics
@@ -142,6 +149,7 @@ rule all:
         if [ -d "collapsed/log" ]; then
             rm -r collapsed/log
         fi
+
 """
 
 #----- Rule to execute trimming
@@ -270,6 +278,31 @@ rule collapsed_hairpin_aln:
         {params.samtools_path} index {output.collapsed_aln}
     
     """
+
+
+
+#----- Rule to get hairpin stats
+rule hairpin_stats:
+    """
+    Collate stats for hairpin alignments
+    """
+    input: 
+        hairpinStats = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam"
+    output:
+        hp_idx = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.idxstats",
+        hp_flagstat = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.flagstat",
+    params:
+        sample = lambda wildcards:  wildcards.sample,
+        samtools_path = config["samtools_path"],
+    resources: 
+        cpus="10", 
+        maxtime="2:00:00", 
+        mem_mb="60gb",
+    message: "Collating {wildcards.sample} mirbase stats with Samtools"
+    shell: """
+    {params.samtools_path} idxstats {input.hairpinStats} > {output.hp_idx}
+    {params.samtools_path} flagstat {input.hairpinStats} > {output.hp_flagstat}
+"""
 
 #----- Rule to run miRtop
 rule miRtop:
@@ -410,9 +443,7 @@ rule pca_plots:
         "plots/PCA_top_PC1_vs_PC2.png",
         "plots/PCA_top_PCA_variance_bar.png",
     conda:
-        "env_config/pcaplot.yaml",
-    params:
-        pca_plot_script = config['pca_plot_script'],   
+        "env_config/pcaplot.yaml", 
     resources: cpus="1", maxtime="1:00:00", mem_mb=2000,
     message: "Running PCA"
     shell: """

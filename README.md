@@ -1,5 +1,7 @@
-# Dartmouth CQB miRNA-seq analysis pipeline
+# Dartmouth GDSC miRNA-seq analysis pipeline
 Pipeline for processing and quality control of miRNA-seq data
+
+ ![Version](https://img.shields.io/badge/version-2.0-blue)
 
 ## Introduction 
 This pipeline provides preprocessing and quality control of miRNA sequencing data. 
@@ -29,7 +31,10 @@ All of these tools can be installed in a [conda environment](https://docs.conda.
 
 ## Implementation
 
-The pipeline uses Snakemake to submit jobs to the scheduler, or spawn processes on a single machine, and requires several variables to be configured by the user when running the pipeline: 
+The pipeline uses Snakemake to submit jobs to the scheduler, or spawn processes on a single machine, and requires several variables to be configured by the user when running the pipeline. For ease, prebuilt configuration files have been built for human and zebrafish.
+
+> [!IMPORTANT]
+> For a detailed description of available parameters, see [`prebuilt_configs/params.md`](prebuilt_configs/params.md)
 
 
 * **sample_csv** - A CSV file containing sample names and paths to fastq paths.  See example in this repository for formatting.
@@ -40,7 +45,7 @@ The pipeline uses Snakemake to submit jobs to the scheduler, or spawn processes 
 
 * **padded_mature_index** - Path to bowtie2 mirBase mature index. 
 * **bowtie2_genome_index** - Path to bowtie2 genome index.  
-* **annotation_gtf** - Path to modified organism gtf for featurecounts (see `reference_files.md` for extended description).  
+* **annotation_gtf** - Path to modified organism gtf for featurecounts
 * **featurecounts_strand** - "1" or "2" #1 for first read transcription strand, 2 for second, 0 for unstranded.*    
 * **adapter_3prime** - the 3'-end adapter that was used in sequencing. It is important this is specified correctly to ensure fidelity of end-to-end alignment, which will not soft clip sequencing adapters.   
 * **nextseq_trim** - cutadapt flag and value for NextSeq quality trimming; set to "" to disable. 

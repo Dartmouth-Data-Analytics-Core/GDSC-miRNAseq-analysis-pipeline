@@ -8,16 +8,16 @@ sps: "hsa"      # One of "hsa" or "dre"
 
 #----- sequencing config
 layout: "single"      # One of "single" or "paired"
-use_spikeins: false   # Boolean: true or false
+use_spikeins: true   # Boolean: true or false
 use_umitools: false   # Boolean: true or false
 adapter_3prime: "AGATCGGAAGAGCACACGTCTGAACTCCAGTCA"
-#nextseq_trim: "--nextseq-trim=30" # cutadapt flag and value for NextSeq quality trimming; set to "" to disable
-nextseq_trim: ""
+nextseq_trim: "--nextseq-trim=30" # cutadapt flag and value for NextSeq quality trimming; set to "" to disable
+#nextseq_trim: ""
 
 #-------------------------------------------#
 # Spike-in Info
 #-------------------------------------------#
-sample_with_spikein_finalvolume: 5 # if using NextFLEX, need to change this value
+sample_with_spikein_finalvolume: 8 # if using NextFLEX, need to change this value
 bowtie_spikein_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/250805_smRNA/spike-in_pipeline/GDSC-miRNAseq-analysis-pipeline/refs/spikeins/spikeins_full"
 spikein_reference_core: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/251106_miRNA/refs/spikeins/spikeins_core.fa"
 
@@ -52,7 +52,5 @@ annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miR
 #-------------------------------------------#
 # Utilities
 #-------------------------------------------#
-pca_plot_script: "scripts/pca_plotting.py"
 #umi_bc_pattern: "'.+(?P<discard_1>AACTGTAGGCACCATCAAT){{s<=2}}(?P<umi_1>.{12})(?P<discard_2>.+)'"
 featurecounts_strand: "0" #1 for first read transcription strand, 2 for second.
-featurecounts_annscript: "scripts/add_gene_to_ensg.py"

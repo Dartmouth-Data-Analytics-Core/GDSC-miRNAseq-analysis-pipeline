@@ -15,7 +15,7 @@ mkdir -p slurm_logs
 
 snakemake -s \
     Snakefile \
-    --configfile prebuilt_configs/zebrafish_config.yaml \
+    --configfile prebuilt_configs/human_config.yaml \
     --profile cluster_profile \
     -T 2 \
     --use-conda \
