@@ -10,7 +10,7 @@ sps: "dre"
 layout: "single"      # One of "single" or "paired"
 use_spikeins: false   # Boolean: true or false
 use_umitools: false   # Boolean: true or false
-adapter_3prime: "AGATCGGAAGAGCACACGTCTGAACTCCAGTCA"
+adapter_3prime: "AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC"
 #nextseq_trim: "--nextseq-trim=30" # cutadapt flag and value for NextSeq quality trimming; set to "" to disable
 nextseq_trim: ""
 
