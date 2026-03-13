@@ -39,7 +39,7 @@ fastqc_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/fastqc/Fast
 #-------------------------------------------#
 bowtie1_hairpin_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/hsa/hsa_hairpin_index/hairpins"
 hairpin_gff: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/hsa/hsa.gff3"
-hairpin_fa: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/hsa/hsa_mirbase_hairpins.fa"
+hairpin_fa: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/hsa/hsa_processed_hairpins.fa"
 
 #-------------------------------------------#
 # Human Reference File Paths (Bowtie 2)
