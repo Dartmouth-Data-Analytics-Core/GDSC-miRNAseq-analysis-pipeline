@@ -1,4 +1,5 @@
 library(tidyverse)
+library(readr)
 
 #----- Set command line args
 args <- commandArgs(trailingOnly = TRUE)
@@ -37,9 +38,14 @@ sum_by_miRNA <- function(df) {
 summed <- sum_by_miRNA(data)
 write.csv(summed, file = paste0(outputDir, "raw_merged_canonical_and_all_isomirs.csv"), row.names = FALSE, quote = FALSE)
 
+
 #----- Get just the canonical counts
 canonical <- data[data$Variant == "NA",]
-write.csv(canonical, file = paste0(outputDir, "raw_canonical_counts.csv"), row.names = FALSE, quote = FALSE)
+#write.csv(canonical, file = paste0(outputDir, "raw_canonical_counts.csv"), row.names = FALSE, quote = FALSE)
+readr::write_tsv(
+  canonical,
+  file = paste0(outputDir, "raw_canonical_counts.tsv")
+)
 
 #----- Get noncanonical
 isomirs <- data[data$Variant != "NA",]
@@ -61,7 +67,11 @@ assign_iso_class <- function(df) {
 isomirs <- assign_iso_class(isomirs)
 
 #----- Output all isomir data
-write.csv(isomirs, file = paste0(outputDir, "raw_all_isomir_counts.csv"), row.names = FALSE, quote = FALSE)
+#write.csv(isomirs, file = paste0(outputDir, "raw_all_isomir_counts.csv"), row.names = FALSE, quote = FALSE)
+readr::write_tsv(
+  canonical,
+  file = paste0(outputDir, "raw_all_isomir_counts.tsv")
+)
 
 #----- Split by each category
 classes <- unique(isomirs$iso_class)
