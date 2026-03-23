@@ -53,17 +53,21 @@ isomirs <- data[data$Variant != "NA",]
 #----- Assign isomir class
 assign_iso_class <- function(df) {
   df %>%
+    rowwise() %>%
     mutate(
-      iso_class = case_when(
-        as.numeric(iso_5p) != 0 ~ "5p",
-        as.numeric(iso_3p) != 0 ~ "3p",
-        as.numeric(iso_add3p) != 0 ~ "non-templated",
-        as.numeric(iso_snp) != 0 ~ "snp",
-        TRUE ~ "canonical"
-      )
-    )
+      iso_class = paste(
+        c(
+          if (as.numeric(iso_5p) != 0) "5p",
+          if (as.numeric(iso_3p) != 0) "3p",
+          if (as.numeric(iso_add3p) != 0) "non-templated",
+          if (as.numeric(iso_snp) != 0) "snp"
+        ),
+        collapse = ","
+      ),
+      iso_class = ifelse(iso_class == "", "canonical", iso_class)
+    ) %>%
+    ungroup()
 }
-
 isomirs <- assign_iso_class(isomirs)
 
 #----- Output all isomir data
@@ -73,11 +77,17 @@ readr::write_tsv(
   file = paste0(outputDir, "raw_all_isomir_counts.tsv")
 )
 
-#----- Split by each category
-classes <- unique(isomirs$iso_class)
+classes <- c("5p", "3p", "non-templated", "snp", "canonical")
 for (i in classes) {
-  isoSub <- isomirs[isomirs$iso_class == i,]
-  fileName <- paste0(i, "_isomir_counts.csv")
-  write.csv(isoSub, file = paste0(outputDir, fileName), row.names = FALSE, quote = FALSE)
+  
+  isoSub <- isomirs %>%
+    filter(str_detect(iso_class, paste0("\\b", i, "\\b")))
+  
+  fileName <- paste0(i, "_isomir_counts.tsv")
+  
+  write_tsv(
+    isoSub,
+    file = paste0(outputDir, fileName))
 }
+   
 
