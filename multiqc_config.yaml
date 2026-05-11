@@ -79,10 +79,10 @@ module_order:
       path_filters:
         - "alignment_logs/mirbase_mature_padded/*"
   - bowtie2:
-      name: "Genome alignment"   # ou o nome que você está usando
+      name: "Genome alignment"   
       info: "Alignment summary of reads to genome using Bowtie2."
       path_filters:
-        - "alignment_logs/genome_alignment_clean/*"   # ← mudou de genome_alignment para genome_alignment_clean
+        - "alignment_logs/genome_alignment_clean/*"   
       anchor: "bowtie2_genome"
 
 sp:
