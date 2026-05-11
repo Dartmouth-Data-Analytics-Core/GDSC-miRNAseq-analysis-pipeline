@@ -273,7 +273,8 @@ rule alignment_metrics_counts:
             python scripts/qc_metrics-non-umi.py \
                 alignment_logs/mirbase_mature_padded \
                 mirbase_alignment \
-                alignment_logs/genome_alignment
+                alignment_logs/genome_alignment \
+                alignment_logs/seqcluster 
         fi
 
         #----- Calculate biotype metrics

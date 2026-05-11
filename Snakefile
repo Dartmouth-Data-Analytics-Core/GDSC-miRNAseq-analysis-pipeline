@@ -134,6 +134,7 @@ rule all:
                 fastQC \
                 alignment_logs/seqcluster \
                 alignment_logs/genome_alignment \
+                alignment_logs/mirbase_mature_padded \
                 collapsed \
                 genome_alignment \
                 genome_counts \

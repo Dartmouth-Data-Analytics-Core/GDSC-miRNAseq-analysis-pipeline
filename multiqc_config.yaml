@@ -17,7 +17,23 @@ intro_text: |
     <em>Authors: Dartmouth Genomic Data Science Core</em><br>
     For correspondence contact: <a href="mailto:gdsc@groups.dartmouth.edu">gdsc@groups.dartmouth.edu</a>
   </p>
+max_table_rows: 1000
+filesearch_lines_limit: 2000000000
 
+extra_fn_clean_exts:
+  - ".bowtie1.hairpin.aln"
+  - ".seqcluster.hairpin.aln.srt"
+  - ".genome.srt.filt"
+  - ".R1"
+
+table_columns_name:
+  "Bowtie1 / Seqcluster":
+    reads_aligned_percentage: "% miRBase hairpin"
+  "miRbase Mature mapping (Padded Reference)":
+    overall_alignment_rate: "% miRBase mature"
+  "Genome alignment":
+    overall_alignment_rate: "% Genome"
+  
 
 #============================================================================
 # MAIN CONFIG
@@ -30,7 +46,7 @@ top_modules: []
 
 # Default to plot view instead of table
 table_columns_visible:
-  general_stats: false
+  general_stats: true
 
 # Customize number formatting for General Statistics
 general_stats_columns:
@@ -63,20 +79,16 @@ module_order:
       path_filters:
         - "alignment_logs/mirbase_mature_padded/*"
   - bowtie2:
-      name: "Genome alignment"
+      name: "Genome alignment"   # ou o nome que você está usando
       info: "Alignment summary of reads to genome using Bowtie2."
       path_filters:
-        - "alignment_logs/genome_alignment/*"
+        - "alignment_logs/genome_alignment_clean/*"   # ← mudou de genome_alignment para genome_alignment_clean
       anchor: "bowtie2_genome"
 
 sp:
-  bowtie1:
-    fn: "*"
-  bowtie2:
-    fn: "*"
   mirtop:
     fn: "*mirtop_stats.log"
-  smrna_biotype:  # Add this to help MultiQC find your custom content file
+  smrna_biotype:
     fn: "*_mqc.tsv"
     contents: "smrna_biotype"
 
