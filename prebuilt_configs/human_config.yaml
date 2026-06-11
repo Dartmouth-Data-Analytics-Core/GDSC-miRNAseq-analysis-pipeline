@@ -4,7 +4,7 @@
 
 #----- sample meta data file
 sample_csv: "sample_fastq_list.csv"
-sps: "hsa"      # One of "hsa" or "dre"
+sps: "hsa"      # One of "hsa" or "dre" or "mmu"
 
 #----- sequencing config
 layout: "single"      # One of "single" or "paired"
