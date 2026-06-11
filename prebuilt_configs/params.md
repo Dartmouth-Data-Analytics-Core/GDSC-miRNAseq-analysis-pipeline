@@ -33,7 +33,7 @@ The pipeline performs several alignment and quantification steps:
 | Parameter | Type / Allowed Values | Example | Description |
 |----------|----------------------|--------|-------------|
 | `sample_csv` | Path to CSV | `sample_fastq_list.csv` | Sample metadata file listing FASTQ files and sample IDs |
-| `sps` | `"hsa"` or `"dre"` | `hsa` | Species identifier (human or zebrafish) |
+| `sps` | `"hsa"` or `"dre"` or `"mmu"` | `hsa` | Species identifier (human or zebrafish or mouse) |
 | `layout` | `"single"` or `"paired"` | `single` | Sequencing layout |
 | `use_spikeins` | `true` / `false` | `false` | Whether spike-in sequences are used |
 | `use_umitools` | `true` / `false` | `false` | Whether UMIs are extracted and processed |
