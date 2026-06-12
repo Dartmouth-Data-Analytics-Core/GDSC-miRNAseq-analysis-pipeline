@@ -164,7 +164,7 @@ rule genome_stats:
         genomeStats = get_genome_stats_input,
     output:
         genome_idx = "genome_alignment/{sample}.genome.srt.filt.bam.idxstats",
-        genome_flagstat = "mirbase_alignment/{sample}.genome.srt.filt.bam.flagstat",
+        genome_flagstat = "genome_alignment/{sample}.genome.srt.filt.bam.flagstat",
     params:
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
@@ -172,7 +172,7 @@ rule genome_stats:
         cpus="10", 
         maxtime="2:00:00", 
         mem_mb="60gb",
-    message: "Collating {wildcards.sample} mirbase stats with Samtools"
+    message: "Collating {wildcards.sample} genome stats with Samtools"
     shell: """
     {params.samtools_path} idxstats {input.genomeStats} > {output.genome_idx}
     {params.samtools_path} flagstat {input.genomeStats} > {output.genome_flagstat}
