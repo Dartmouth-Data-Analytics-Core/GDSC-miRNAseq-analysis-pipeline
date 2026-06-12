@@ -74,7 +74,7 @@ all_inputs += ["mirtop/mirtop_stats.log"]
 #----- Genome alignment and featureCounts (always included)
 all_inputs += expand("genome_alignment/{sample}.genome.srt.filt.bam", sample=sample_list)
 all_inputs += expand("genome_alignment/{sample}.genome.srt.filt.bam.idxstats", sample=sample_list)
-all_inputs += expand("mirbase_alignment/{sample}.genome.srt.filt.bam.flagstat", sample=sample_list)
+all_inputs += expand("genome_alignment/{sample}.genome.srt.filt.bam.flagstat", sample=sample_list)
 
 if USE_UMITOOLS:
     all_inputs += expand("genome_alignment/{sample}.genome.srt.filt.dedup.bam", sample=sample_list)
