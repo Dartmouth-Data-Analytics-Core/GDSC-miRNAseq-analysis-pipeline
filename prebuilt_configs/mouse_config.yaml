@@ -47,7 +47,7 @@ hairpin_fa: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v
 padded_mature_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/mmu/mirbase-mouse-mm10-padded/mirbase-mouse-mm10-padded"
 bowtie2_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/mouse/mm10-bowtie2-index/mm10"
 #annotation_gtf: "/dartfs/rc/nosnapshots/G/GMBSR_refs/Hsapiens/GRCh38/downloads/gencode.v45.annotation.gtf"
-annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/mmu/mmu_smRNAs_super_sorted.gtf"
+annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/mmu/mm10_smRNAs_super_sorted.gtf"
 #-------------------------------------------#
 # Utilities
 #-------------------------------------------#
