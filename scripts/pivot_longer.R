@@ -1,7 +1,10 @@
 #!/usr/bin/env Rscript
 
 suppressPackageStartupMessages({
-  library(tidyverse)
+  library(dplyr)
+  library(tidyr)
+  library(readr)
+  library(stringr)
 })
 
 args <- commandArgs(trailingOnly = TRUE)

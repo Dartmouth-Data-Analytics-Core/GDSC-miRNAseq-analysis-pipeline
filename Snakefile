@@ -1,24 +1,35 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# GDSC miRNA Pipeline v3
+# GDSC miRNA Pipeline v2
 #
 # Pipeline for the quantification of miRNAs, isomiRs, and other small RNAs
-#
-# TO DO
-# - Add script to collapse isomirs down to their family to provide a decent proxy for mature counts
-#
-# TO-DO
-#--------
-#
-# - Add fastqc report back into QC.smk
-# - Add idxstats for the seqcluster counts
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+import subprocess
 import pandas as pd
 import pprint
+from snakemake.utils import validate
 
 #----- set config file if not defined in job script
 configfile: "config.yaml"
+validate(config, schema="schemas/config.schema.yaml")
+
 USE_SPIKEINS = config.get("use_spikeins", False)
 USE_UMITOOLS = config.get("use_umitools", False)
+
+onstart:
+    if "reference_checksums" in config:
+        logger.info("Ensuring reference md5s match manifest:")
+        result = subprocess.run(
+            ["md5sum", "--check", config["reference_checksums"]],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+        )
+        failed = [l for l in result.stdout.splitlines() if not l.endswith("OK")]
+        if failed:
+            for line in failed:
+                logger.error(line)
+            raise SystemExit("Reference checksum validation failed. Aborting.")
+        logger.info("All reference MD5s match")
+        logger.info("")
 
 #----- read in sample data
 samples_df = pd.read_csv(config["sample_csv"]).set_index("sample_id", drop=False)
@@ -109,7 +120,7 @@ rule all:
         "multiqc_report.html",
     conda:
         "env_config/multiqc.yaml",
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
+    resources: cpus="10", maxtime="2:00:00", mem_mb=61440,
     params:
         multiqc=config["multiqc_path"],
         use_umi = USE_UMITOOLS
@@ -170,7 +181,7 @@ rule trimming:
     resources: 
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Trimming {wildcards.sample} reads with cutadapt."
     shell: """
 
@@ -211,7 +222,7 @@ rule seqcluster:
     threads: 8
     resources:
         maxtime="2:00:00",
-        mem_mb="60gb"
+        mem_mb=61440
     message: "Collapsing {wildcards.sample} reads with Seqcluster."
     log: "collapsed/logs/{sample}.seqcluster.log"
     shell: """
@@ -250,7 +261,7 @@ rule collapsed_hairpin_aln:
     threads: 8
     resources:
         maxtime="2:00:00",
-        mem_mb="60gb"
+        mem_mb=61440
     message: "Aligning {wildcards.sample} collapsed reads to hairpin index with Bowtie1."
     log: "alignment_logs/seqcluster/{sample}.bowtie1.hairpin.aln.log"
     shell: """
@@ -298,7 +309,7 @@ rule hairpin_stats:
     resources: 
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Collating {wildcards.sample} mirbase stats with Samtools"
     shell: """
     {params.samtools_path} idxstats {input.hairpinStats} > {output.hp_idx}
@@ -324,7 +335,7 @@ rule miRtop:
     resources:
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Getting {wildcards.sample} isomiRs with miRtop."
     log: 
         gffLog = "mirtop/logs/{sample}.mirtop.gff.log",
@@ -367,7 +378,7 @@ rule mirtop_stats:
     resources:
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Getting mirtop stats"
     shell: """
 
@@ -393,7 +404,7 @@ rule pivot_isomirs_longer:
     resources:
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Pivottings {wildcards.sample} isomiR data to long format."
     shell: """
 
@@ -417,7 +428,7 @@ rule collate_isomir_table:
     resources:
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Collating isomir counts across samples."
     shell: """
     

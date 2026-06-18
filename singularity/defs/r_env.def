@@ -1,0 +1,15 @@
+Bootstrap: docker
+From: condaforge/mambaforge:latest
+
+%files
+    ../../env_config/r_env.yaml /env.yaml
+
+%post
+    mamba env create -f /env.yaml -n r_env
+    mamba clean --all -y
+
+%environment
+    export PATH="/opt/conda/envs/r_env/bin:$PATH"
+
+%runscript
+    exec "$@"

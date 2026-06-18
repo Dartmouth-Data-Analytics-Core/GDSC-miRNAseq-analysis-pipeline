@@ -17,7 +17,7 @@ rule umitools:
         sample = lambda wildcards:  wildcards.sample,
         umitools_path = config["umitools_path"],
         fastq_file_1 = lambda wildcards: samples_df.loc[wildcards.sample, "fastq_1"],
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
+    resources: cpus="10", maxtime="2:00:00", mem_mb=61440,
     message: "Extracting {wildcards.sample} UMIs."
     shell: """
         {params.umitools_path} extract \
@@ -33,17 +33,17 @@ rule mirbase_dedup:
     """
     Deduplicate mirBase reads
     """
-    input: 
-        mature = "mirbase_alignment/mature/{sample}.mature.srt.bam",
+    input:
+        mature = "mirbase_alignment/{sample}.mature.srt.bam",
     output:
-        mature_dedup = "mirbase_alignment/mature/{sample}.mature.srt.dedup.bam",
+        mature_dedup = "mirbase_alignment/{sample}.mature.srt.dedup.bam",
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie1_path = config["bowtie1_path"],
         bowtie1_index = config["bowtie1_index"],
         umitools_path = config["umitools_path"],
         samtools_path = config["samtools_path"],
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
+    resources: cpus="10", maxtime="2:00:00", mem_mb=61440,
     message: "Deduplicating {wildcards.sample} mirbase reads."
     shell: """
 
@@ -73,7 +73,7 @@ rule genome_dedup:
         bowtie_index = config["bowtie_index"],
         umitools_path = config["umitools_path"],
         samtools_path = config["samtools_path"],
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
+    resources: cpus="10", maxtime="2:00:00", mem_mb=61440,
     message: "Deduplicating {wildcards.sample} genome reads."
     shell: """
 
