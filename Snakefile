@@ -301,7 +301,7 @@ rule hairpin_stats:
     output:
         hp_idx = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.idxstats",
         hp_flagstat = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.flagstat",
-    conda: "env_config/bowtie1.yaml
+    conda: "env_config/bowtie1.yaml"
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
     resources: 
