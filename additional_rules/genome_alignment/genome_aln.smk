@@ -23,9 +23,10 @@ rule mirbase_padded_aln:
         bowtie2_path = config["bowtie2_path"],
         padded_mature_index = config["padded_mature_index"],
         samtools_path = config["samtools_path"]
+    conda: "../../env_config/bowtie2.yaml"
     threads: 12
-    resources: 
-        maxtime="2:00:00", 
+    resources:
+        maxtime="2:00:00",
         mem_mb=61440,
     message: "Aligning {wildcards.sample} reads to padded mature miRNA sequences with Bowtie2."
     log: "alignment_logs/mirbase_mature_padded/{sample}.bowtie2.mature.log"
@@ -94,9 +95,10 @@ rule mature_mirbase_stats:
     params:
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
-    resources: 
-        cpus="10", 
-        maxtime="2:00:00", 
+    conda: "../../env_config/bowtie2.yaml"
+    resources:
+        cpus="10",
+        maxtime="2:00:00",
         mem_mb=61440,
     message: "Collating {wildcards.sample} mirbase stats with Samtools"
     shell: """
@@ -118,9 +120,10 @@ rule genome_alignment:
         bowtie2_path = config["bowtie2_path"],
         bowtie2_genome_index = config["bowtie2_genome_index"],
         samtools_path = config["samtools_path"]
+    conda: "../../env_config/bowtie2.yaml"
     threads: 12
     resources:
-        maxtime="2:00:00", 
+        maxtime="2:00:00",
         mem_mb=61440,
     message: "Aligning {wildcards.sample} mature unaligned reads to genome."
     log: "alignment_logs/genome_alignment/{sample}.bowtie2.genome.log"
@@ -168,9 +171,10 @@ rule genome_stats:
     params:
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
-    resources: 
-        cpus="10", 
-        maxtime="2:00:00", 
+    conda: "../../env_config/bowtie2.yaml"
+    resources:
+        cpus="10",
+        maxtime="2:00:00",
         mem_mb=61440,
     message: "Collating {wildcards.sample} genome stats with Samtools"
     shell: """

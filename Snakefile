@@ -258,6 +258,7 @@ rule collapsed_hairpin_aln:
         bowtie1_path = config["bowtie1_path"],
         hairpin_index = config["bowtie1_hairpin_index"],
         samtools_path = config["samtools_path"]
+    conda: "env_config/bowtie1.yaml"
     threads: 8
     resources:
         maxtime="2:00:00",
@@ -306,9 +307,10 @@ rule hairpin_stats:
     params:
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
-    resources: 
-        cpus="10", 
-        maxtime="2:00:00", 
+    conda: "env_config/bowtie1.yaml"
+    resources:
+        cpus="10",
+        maxtime="2:00:00",
         mem_mb=61440,
     message: "Collating {wildcards.sample} mirbase stats with Samtools"
     shell: """
