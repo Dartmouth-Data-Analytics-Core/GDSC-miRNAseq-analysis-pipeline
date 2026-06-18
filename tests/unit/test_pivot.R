@@ -2,8 +2,6 @@
 # Unit tests for scripts/pivot_longer.R and scripts/pivot_wider.R
 # Uses base R stopifnot() for lightweight assertions (no testthat dependency).
 
-suppressPackageStartupMessages(library(tidyverse))
-
 SCRIPTS <- file.path(dirname(dirname(dirname(normalizePath(sys.frame(1)$ofile,
   mustWork = FALSE)))), "scripts")
 if (!nchar(SCRIPTS) || !dir.exists(SCRIPTS)) {

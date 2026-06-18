@@ -26,7 +26,7 @@ rule mirbase_padded_aln:
     threads: 12
     resources: 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Aligning {wildcards.sample} reads to padded mature miRNA sequences with Bowtie2."
     log: "alignment_logs/mirbase_mature_padded/{sample}.bowtie2.mature.log"
     shell: """
@@ -97,7 +97,7 @@ rule mature_mirbase_stats:
     resources: 
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Collating {wildcards.sample} mirbase stats with Samtools"
     shell: """
     {params.samtools_path} idxstats {input.matureStats} > {output.mature_idx}
@@ -121,7 +121,7 @@ rule genome_alignment:
     threads: 12
     resources:
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Aligning {wildcards.sample} mature unaligned reads to genome."
     log: "alignment_logs/genome_alignment/{sample}.bowtie2.genome.log"
     shell: """
@@ -171,7 +171,7 @@ rule genome_stats:
     resources: 
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Collating {wildcards.sample} genome stats with Samtools"
     shell: """
     {params.samtools_path} idxstats {input.genomeStats} > {output.genome_idx}
@@ -206,7 +206,7 @@ rule genome_featureCounts:
     resources:
         cpus = "10",
         maxtime = "8:00:00",
-        mem_mb = "100gb"
+        mem_mb = 102400
     message: "Running featurecounts on genome alignments."
     shell: """
     
@@ -255,7 +255,7 @@ rule alignment_metrics_counts:
         "../../env_config/featurecounts.yaml",
     params:
         use_umi = USE_UMITOOLS,
-    resources: cpus="1", maxtime="8:00:00", mem_mb="2gb",
+    resources: cpus="1", maxtime="8:00:00", mem_mb=2048,
     message: "Calculating metrics"
     shell: """
 

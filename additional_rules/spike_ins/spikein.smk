@@ -9,7 +9,7 @@ rule spikein_bbduk:
         unmapped = "spikein_alignment/{sample}.unmapped.fastq.gz"
     params:
         spikein_ref = config["spikein_reference_core"]  
-    resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
+    resources: cpus="10", maxtime="4:00:00", mem_mb=61440,
     threads: 8
     conda:
         "../../env_config/bbmap.yaml"
@@ -40,7 +40,7 @@ rule spikein_counts:
         "spikein_counts/spikein.readcounts.tsv"
     params:
         samples=lambda wildcards, input: [path.split("/")[-1].replace(".stats","") for path in input]
-    resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
+    resources: cpus="10", maxtime="4:00:00", mem_mb=61440,
     message: "Generating spike-in counts."
     shell: """
         echo STATS: {input}
@@ -63,7 +63,7 @@ rule mappingBowtieSpikeIns:
         map = "spikein_alignment/{sample}.map",
         unmapped = "spikein_alignment/{sample}.unmapped.bowtie.fastq.gz"
     threads: 12
-    resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
+    resources: cpus="10", maxtime="4:00:00", mem_mb=61440,
     log: "alignment_logs/spike-ins/{sample}.bowtie1.spikein.aln.log" 
     conda:
         "../../env_config/bowtie1.yaml"
@@ -92,7 +92,7 @@ rule normalize_data_spikein:
         "spikein_metrics/normalized_scalefactor_canon_and_isomir_counts.tsv"
     conda:
         "../../env_config/r_env.yaml"
-    resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
+    resources: cpus="10", maxtime="4:00:00", mem_mb=61440,
     params:
         final_volume = config["sample_with_spikein_finalvolume"]
     message: "Normalizing spike-in data"

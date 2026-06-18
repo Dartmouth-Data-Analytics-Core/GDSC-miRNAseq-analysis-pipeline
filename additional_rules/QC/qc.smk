@@ -9,7 +9,7 @@ rule make_fastqc_config:
     resources:
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Building fastQC config."
     shell: """
     
@@ -46,7 +46,7 @@ rule trimmed_fastqc:
     resources:
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Running {wildcards.sample} trimmed fastQC."
     shell: """
     

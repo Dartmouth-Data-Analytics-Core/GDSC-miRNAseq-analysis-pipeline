@@ -149,7 +149,7 @@ def run_pca(X_scaled, sample_names, prefix, ncomp=args.pca_comp):
         )
         p.save(f"{args.output_path}/{prefix}_{x}_vs_{y}.png", width=8, height=6, dpi=300)
 
-    plot_pc_pair(1, 2)
+    if ncomp >= 2: plot_pc_pair(1, 2)
     if ncomp >= 3: plot_pc_pair(2, 3)
     if ncomp >= 4: plot_pc_pair(3, 4)
 
