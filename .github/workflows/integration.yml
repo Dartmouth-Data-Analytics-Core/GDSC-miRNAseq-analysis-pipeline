@@ -2,7 +2,7 @@ name: Integration — Pipeline Run
 
 on:
   pull_request:
-    branches: [**]
+    branches: ["**"]
   schedule:
     # Weekly on Monday at 6am UTC
     - cron: "0 6 * * 1"
