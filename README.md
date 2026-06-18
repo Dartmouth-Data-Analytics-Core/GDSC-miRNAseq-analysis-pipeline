@@ -1,14 +1,9 @@
 # Dartmouth GDSC miRNA-seq analysis pipeline
-Pipeline for processing and quality control of miRNA-seq data
+<img src="img/cqb_logo.jpg" alt="CQB Logo" width="200" align="right"/>  
 
- ![Version](https://img.shields.io/badge/version-2.0-blue)
+![Version](https://img.shields.io/badge/version-2.0-blue)
 
-## Introduction 
-This pipeline provides preprocessing and quality control of miRNA sequencing data. 
-
-Currently, this pipeline supports miRNA seq runs created with Qiagen chemistry, including UMIs as well as NEB Small RNA chemistry. 
-
-The pipeline has been built and tested using human, mouse, and zebrafish data sets. Required software can be installed using Conda with the enrionment file (environment.yml), or specified as paths in the config.yaml file.
+The GDSC miRNA-seq pipeline provides the preprocessing of microRNA-Seq (miRNA) data with robust quality control and data visualization implemented through [Snakemake](https://snakemake.readthedocs.io/en/stable/) for use on the [Dartmouth Discovery HPC](https://rc.dartmouth.edu/discoveryhpc/). This pipeline supports the quantification of isomiRs (miRNA sequence variants) and canonical mature miRNAs via [miRBase](https://www.mirbase.org). Currently, this pipeline is highly configurable and compatible with human (hg38), mouse (mm10), and zebrafish (grcz11) across non-UMI containing Qiagen libraries and UMI-containing NEB Small RNA chemistries. Robust testing was conducted on human and zebrafish data. Required software can be installed using Conda.
 
 ## Pipeline summary:
 
@@ -61,11 +56,19 @@ Activate an environment containing Snakemake:
 conda activate /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/snakemake/snakemake-7.18
 ```
 
-## More Command Line Examples
-Submit the pipeline to a single machine, allowing usage of 40 cores:
+Modify the `job.script.sh` to point to a valid organism to dynamically set a prebuilt config:
+
 ```shell
-snakemake --use-conda -s Snakefile -j 40 --use-conda --conda-frontend conda --conda-prefix /dartfs/rc/nosnapshots/G/GMBSR_refs/envs/miRNAseq
+#----- Specify Config (one of "human", "mouse", or "zebrafish", case-sensitive and needs to be in quotes.)
+CONFIG="human"
 ```
+
+Submit the `job.script.sh`
+
+```shell
+sbatch job.script.sh
+```
+
 
 **Contact & questions:** 
 Please address questions to *DataAnalyticsCore@groups.dartmouth.edu* or submit an issue in the GitHub repository. 
