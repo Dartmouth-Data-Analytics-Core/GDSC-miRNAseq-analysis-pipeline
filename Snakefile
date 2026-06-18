@@ -301,9 +301,10 @@ rule hairpin_stats:
     output:
         hp_idx = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.idxstats",
         hp_flagstat = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.flagstat",
-    conda: "env_config/bowtie1.yaml"
+    params:
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
+    conda: "env_config/bowtie1.yaml"
     resources: 
         cpus="10", 
         maxtime="2:00:00", 
