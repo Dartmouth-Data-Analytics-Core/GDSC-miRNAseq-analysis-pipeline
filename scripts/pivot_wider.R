@@ -1,5 +1,9 @@
-library(tidyverse)
-library(readr)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(readr)
+  library(stringr)
+})
 
 #----- Set command line args
 args <- commandArgs(trailingOnly = TRUE)
