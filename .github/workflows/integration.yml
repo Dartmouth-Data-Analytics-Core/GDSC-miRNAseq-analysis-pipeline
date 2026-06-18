@@ -41,7 +41,7 @@ jobs:
 
       - name: Build bowtie1 hairpin index
         run: |
-          bowtie-build \
+          micromamba run -n base bowtie-build \
             tests/fixtures/refs/hairpin_subset.fa \
             tests/fixtures/refs/hairpin_subset
           echo "Bowtie1 index built"
