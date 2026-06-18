@@ -109,7 +109,7 @@ rule all:
         "multiqc_report.html",
     conda:
         "env_config/multiqc.yaml",
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
+    resources: cpus="10", maxtime="2:00:00", mem_mb=61440,
     params:
         multiqc=config["multiqc_path"],
         use_umi = USE_UMITOOLS
