@@ -31,7 +31,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install Snakemake
-        run: pip install snakemake
+        run: pip install snakemake pandas
 
       - name: Build all conda environments
         run: |
