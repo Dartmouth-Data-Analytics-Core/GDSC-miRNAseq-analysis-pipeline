@@ -129,6 +129,18 @@ properties:
     type: string
     description: "Bowtie1 index prefix for miRBase mature sequences (required when use_umitools is true)"
 
+  bowtie1_index:
+    type: string
+    description: "Bowtie1 index prefix for mature miRNA deduplication (UMI tools)"
+
+  bowtie_path:
+    type: string
+    description: "Path to bowtie executable for UMI deduplication alignment"
+
+  bowtie_index:
+    type: string
+    description: "Bowtie1 index prefix for UMI deduplication alignment"
+
   hairpin_gff:
     type: string
     description: "miRBase GFF3 annotation file for hairpin sequences"
