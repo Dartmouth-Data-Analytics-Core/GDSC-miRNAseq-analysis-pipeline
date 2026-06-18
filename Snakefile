@@ -255,6 +255,7 @@ rule collapsed_hairpin_aln:
         bowtie1_path = config["bowtie1_path"],
         hairpin_index = config["bowtie1_hairpin_index"],
         samtools_path = config["samtools_path"]
+    conda: "env_config/bowtie1.yaml"
     threads: 8
     resources:
         maxtime="2:00:00",
@@ -300,7 +301,7 @@ rule hairpin_stats:
     output:
         hp_idx = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.idxstats",
         hp_flagstat = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.flagstat",
-    params:
+    conda: "env_config/bowtie1.yaml
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
     resources: 

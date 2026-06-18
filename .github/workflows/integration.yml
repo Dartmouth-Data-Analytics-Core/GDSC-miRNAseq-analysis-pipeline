@@ -9,8 +9,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  integration:
-    name: Full isomiR path (trimming → miRtop → count table)
+  # ── Build all conda environments once and pass as artifact ──────────────────
+  build-conda-envs:
+    name: Build conda environments
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -19,21 +20,69 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ── Conda / micromamba ──────────────────────────────
       - uses: mamba-org/setup-micromamba@v1
         with:
           micromamba-version: "latest"
           init-shell: bash
           cache-downloads: true
-          post-cleanup: "all"
 
-      # ── Python for pytest output validation ─────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Snakemake
+        run: pip install snakemake
+
+      - name: Build all conda environments
+        run: |
+          snakemake \
+            --use-conda \
+            --conda-frontend mamba \
+            --conda-create-envs-only \
+            --configfile tests/fixtures/test_config.yaml \
+            --snakefile Snakefile \
+            --cores 2
+
+      - name: Tar conda environments
+        run: tar -czf conda_envs.tar.gz .snakemake/conda/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: conda_envs
+          path: conda_envs.tar.gz
+          retention-days: 1
+
+  # ── Integration test: default config (no UMI, no spike-ins) ─────────────────
+  integration:
+    name: Full isomiR path (trimming → miRtop → count table)
+    needs: build-conda-envs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mamba-org/setup-micromamba@v1
+        with:
+          micromamba-version: "latest"
+          init-shell: bash
+          cache-downloads: true
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install test dependencies
         run: pip install pytest snakemake pandas
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: conda_envs
+
+      - name: Restore conda environments
+        run: tar -xzf conda_envs.tar.gz
 
       # ── Build test Bowtie1 hairpin index ─────────────────
       - name: Install bowtie1 for index building
