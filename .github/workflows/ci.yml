@@ -3,7 +3,6 @@ name: CI — Dry-run & Unit Tests
 on:
   push:
     branches: ["**"]
-  pull_request:
 
 jobs:
   # -------------------------------------------------------
