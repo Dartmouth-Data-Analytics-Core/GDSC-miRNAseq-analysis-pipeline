@@ -33,10 +33,10 @@ rule mirbase_dedup:
     """
     Deduplicate mirBase reads
     """
-    input: 
-        mature = "mirbase_alignment/mature/{sample}.mature.srt.bam",
+    input:
+        mature = "mirbase_alignment/{sample}.mature.srt.bam",
     output:
-        mature_dedup = "mirbase_alignment/mature/{sample}.mature.srt.dedup.bam",
+        mature_dedup = "mirbase_alignment/{sample}.mature.srt.dedup.bam",
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie1_path = config["bowtie1_path"],
