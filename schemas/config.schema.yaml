@@ -1,0 +1,169 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+description: "GDSC miRNA-Seq pipeline configuration"
+
+type: object
+additionalProperties: false
+
+required:
+  - sample_csv
+  - sps
+  - layout
+  - use_spikeins
+  - use_umitools
+  - adapter_3prime
+  - nextseq_trim
+  - sample_with_spikein_finalvolume
+  - bowtie_spikein_index
+  - spikein_reference_core
+  - samtools_path
+  - bowtie1_path
+  - bowtie2_path
+  - seqcluster_path
+  - multiqc_path
+  - python_mirna_venv
+  - featurecounts_path
+  - fastqc_path
+  - umitools_path
+  - bowtie1_hairpin_index
+  - hairpin_gff
+  - hairpin_fa
+  - padded_mature_index
+  - bowtie2_genome_index
+  - annotation_gtf
+  - featurecounts_strand
+
+properties:
+
+  # ── General ────────────────────────────────────────────────────────────────
+
+  sample_csv:
+    type: string
+    description: "Path to sample sheet CSV (columns: sample_id, fastq_1)"
+
+  sps:
+    type: string
+    enum: ["hsa", "mmu", "dre"]
+    description: "miRBase species code"
+
+  layout:
+    type: string
+    enum: ["single", "paired"]
+    description: "Sequencing layout"
+
+  use_spikeins:
+    type: boolean
+    description: "Enable spike-in alignment and normalization"
+
+  use_umitools:
+    type: boolean
+    description: "Enable UMI extraction and deduplication"
+
+  adapter_3prime:
+    type: string
+    minLength: 1
+    description: "3-prime adapter sequence passed to cutadapt"
+
+  nextseq_trim:
+    type: string
+    description: "cutadapt NextSeq quality-trim flag (e.g. '--nextseq-trim=30'); set to empty string to disable"
+
+  # ── Spike-in settings ──────────────────────────────────────────────────────
+
+  sample_with_spikein_finalvolume:
+    type: number
+    description: "Final volume (µL) of spike-in added per sample (NextFLEX protocol)"
+
+  bowtie_spikein_index:
+    type: string
+    description: "Bowtie1 index prefix for spike-in sequences"
+
+  spikein_reference_core:
+    type: string
+    description: "FASTA file of core spike-in sequences"
+
+  # ── Software paths ─────────────────────────────────────────────────────────
+
+  samtools_path:
+    type: string
+    description: "Path to samtools executable"
+
+  bowtie1_path:
+    type: string
+    description: "Path to bowtie (v1) executable"
+
+  bowtie2_path:
+    type: string
+    description: "Path to bowtie2 executable"
+
+  seqcluster_path:
+    type: string
+    description: "Path to seqcluster executable"
+
+  multiqc_path:
+    type: string
+    description: "Path to multiqc executable"
+
+  python_mirna_venv:
+    type: string
+    description: "Path to python3 interpreter used for miRNA scripts"
+
+  featurecounts_path:
+    type: string
+    description: "Path to featureCounts executable"
+
+  fastqc_path:
+    type: string
+    description: "Path to fastqc executable"
+
+  umitools_path:
+    type: string
+    description: "Path to umi_tools executable"
+
+  # ── Reference files ────────────────────────────────────────────────────────
+
+  bowtie1_hairpin_index:
+    type: string
+    description: "Bowtie1 index prefix for miRBase hairpin sequences"
+
+  bowtie1_mature_index:
+    type: string
+    description: "Bowtie1 index prefix for miRBase mature sequences (required when use_umitools is true)"
+
+  hairpin_gff:
+    type: string
+    description: "miRBase GFF3 annotation file for hairpin sequences"
+
+  hairpin_fa:
+    type: string
+    description: "miRBase hairpin FASTA file"
+
+  padded_mature_index:
+    type: string
+    description: "Bowtie2 index prefix for padded mature miRNA sequences"
+
+  bowtie2_genome_index:
+    type: string
+    description: "Bowtie2 genome index prefix"
+
+  annotation_gtf:
+    type: string
+    description: "GTF annotation file for featureCounts"
+
+  # ── Utilities ──────────────────────────────────────────────────────────────
+
+  featurecounts_strand:
+    type: string
+    enum: ["0", "1", "2"]
+    description: "featureCounts strandedness: 0=unstranded, 1=stranded, 2=reverse-stranded"
+
+  pca_plot_script:
+    type: string
+    description: "Path to PCA plotting script"
+
+  featurecounts_annscript:
+    type: string
+    description: "Path to featureCounts annotation script"
+
+  reference_checksums:
+    type: string
+    description: "Path to MD5 checksum file for reference files (optional)"

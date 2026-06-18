@@ -7,9 +7,12 @@
 import subprocess
 import pandas as pd
 import pprint
+from snakemake.utils import validate
 
 #----- set config file if not defined in job script
 configfile: "config.yaml"
+validate(config, schema="schemas/config.schema.yaml")
+
 USE_SPIKEINS = config.get("use_spikeins", False)
 USE_UMITOOLS = config.get("use_umitools", False)
 
