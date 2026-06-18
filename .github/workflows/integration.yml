@@ -54,7 +54,7 @@ jobs:
 
   # ── Integration test: default config (no UMI, no spike-ins) ─────────────────
   integration:
-    name: Full isomiR path (trimming → miRtop → count table)
+    name: Mapping pipeline (trimming → seqcluster → hairpin alignment)
     needs: build-conda-envs
     runs-on: ubuntu-latest
     defaults:
@@ -75,7 +75,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install test dependencies
-        run: pip install pytest snakemake pandas
+        run: pip install pytest snakemake
 
       - uses: actions/download-artifact@v4
         with:
@@ -95,8 +95,8 @@ jobs:
             tests/fixtures/refs/hairpin_subset
           echo "Bowtie1 index built"
 
-      # ── Run pipeline (isomiR path only) ──────────────────
-      - name: Run pipeline — isomiR path
+      # ── Run mapping pipeline ─────────────────────────────
+      - name: Run mapping pipeline
         run: |
           snakemake \
             --use-conda \
@@ -105,8 +105,12 @@ jobs:
             --snakefile Snakefile \
             --cores 2 \
             --rerun-incomplete \
-            miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv \
-            mirtop/mirtop_stats.log \
+            collapsed/sample_1.seqcluster.hairpin.aln.srt.bam \
+            collapsed/sample_2.seqcluster.hairpin.aln.srt.bam \
+            collapsed/sample_1.seqcluster.hairpin.aln.srt.bam.idxstats \
+            collapsed/sample_2.seqcluster.hairpin.aln.srt.bam.idxstats \
+            collapsed/sample_1.seqcluster.hairpin.aln.srt.bam.flagstat \
+            collapsed/sample_2.seqcluster.hairpin.aln.srt.bam.flagstat \
             fastQC/fastqc_multiqc_config.yaml
 
       # ── Run trimming + FastQC independently ──────────────
