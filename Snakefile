@@ -170,7 +170,7 @@ rule trimming:
     resources: 
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Trimming {wildcards.sample} reads with cutadapt."
     shell: """
 
@@ -211,7 +211,7 @@ rule seqcluster:
     threads: 8
     resources:
         maxtime="2:00:00",
-        mem_mb="60gb"
+        mem_mb=61440
     message: "Collapsing {wildcards.sample} reads with Seqcluster."
     log: "collapsed/logs/{sample}.seqcluster.log"
     shell: """
@@ -250,7 +250,7 @@ rule collapsed_hairpin_aln:
     threads: 8
     resources:
         maxtime="2:00:00",
-        mem_mb="60gb"
+        mem_mb=61440
     message: "Aligning {wildcards.sample} collapsed reads to hairpin index with Bowtie1."
     log: "alignment_logs/seqcluster/{sample}.bowtie1.hairpin.aln.log"
     shell: """
@@ -298,7 +298,7 @@ rule hairpin_stats:
     resources: 
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Collating {wildcards.sample} mirbase stats with Samtools"
     shell: """
     {params.samtools_path} idxstats {input.hairpinStats} > {output.hp_idx}
@@ -324,7 +324,7 @@ rule miRtop:
     resources:
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Getting {wildcards.sample} isomiRs with miRtop."
     log: 
         gffLog = "mirtop/logs/{sample}.mirtop.gff.log",
@@ -367,7 +367,7 @@ rule mirtop_stats:
     resources:
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Getting mirtop stats"
     shell: """
 
@@ -393,7 +393,7 @@ rule pivot_isomirs_longer:
     resources:
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Pivottings {wildcards.sample} isomiR data to long format."
     shell: """
 
@@ -417,7 +417,7 @@ rule collate_isomir_table:
     resources:
         cpus="10", 
         maxtime="2:00:00", 
-        mem_mb="60gb",
+        mem_mb=61440,
     message: "Collating isomir counts across samples."
     shell: """
     
