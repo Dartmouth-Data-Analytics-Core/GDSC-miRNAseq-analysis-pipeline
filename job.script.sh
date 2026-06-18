@@ -22,19 +22,23 @@ source "${CONDA_BASE}/etc/profile.d/conda.sh"
 conda activate "${SNAKEMAKE_ENV}"
 
 #----- LOGGER
-echo "#------------------------ Initialization ------------------------#"
-echo -e "Running GDSC-miRNASeq Pipeline for "${CONFIG}" with Snakemake $(snakemake --version) \n" 
-echo "Job:        $SLURM_JOB_NAME"
-echo "Job ID:     $SLURM_JOB_ID"
-echo "Node:       $(hostname)"
-echo "Start time: $(date)"
-echo "Work dir:   $(pwd)"
-echo "Conda base: $CONDA_BASE"
-echo "Snakemake environment: $SNAKEMAKE_ENV"
-echo "Using snakemake from: $(which snakemake)"
-echo "Conda Prefix: $CONDA_PREFIX_PATH"
-echo -e "#-------------------------------------------------------------# \n"
-echo -e "SNAKEMAKE LOG:\n"
+cat <<EOF
+#───────────────────────── Initialization ──────────────────────────#
+Running GDSC-miRNASeq Pipeline for ${CONFIG} with Snakemake $(snakemake --version)
+
+Job:        $SLURM_JOB_NAME
+Job ID:     $SLURM_JOB_ID
+Node:       $(hostname)
+Start time: $(date)
+Work dir:   $(pwd)
+Conda base: $CONDA_BASE
+Snakemake:  $SNAKEMAKE_ENV
+Binary:     $(which snakemake)
+Conda pfx:  $CONDA_PREFIX_PATH
+#───────────────────────── Initialization ──────────────────────────#
+
+SNAKEMAKE LOG:
+EOF
 
 #----- Make slurm logs
 mkdir -p slurm_logs
