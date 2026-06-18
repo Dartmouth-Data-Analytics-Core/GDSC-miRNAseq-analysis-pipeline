@@ -53,3 +53,4 @@ annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miR
 #-------------------------------------------#
 #umi_bc_pattern: "'.+(?P<discard_1>AACTGTAGGCACCATCAAT){{s<=2}}(?P<umi_1>.{12})(?P<discard_2>.+)'"
 featurecounts_strand: "0" #1 for first read transcription strand, 2 for second.
+reference_checksums: "prebuilt_configs/ref_md5s/mouse_refs.md5"

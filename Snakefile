@@ -1,17 +1,10 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# GDSC miRNA Pipeline v3
+# GDSC miRNA Pipeline v2
 #
 # Pipeline for the quantification of miRNAs, isomiRs, and other small RNAs
-#
-# TO DO
-# - Add script to collapse isomirs down to their family to provide a decent proxy for mature counts
-#
-# TO-DO
-#--------
-#
-# - Add fastqc report back into QC.smk
-# - Add idxstats for the seqcluster counts
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+import subprocess
 import pandas as pd
 import pprint
 
@@ -19,6 +12,21 @@ import pprint
 configfile: "config.yaml"
 USE_SPIKEINS = config.get("use_spikeins", False)
 USE_UMITOOLS = config.get("use_umitools", False)
+
+onstart:
+    if "reference_checksums" in config:
+        logger.info("Ensuring reference md5s match manifest:")
+        result = subprocess.run(
+            ["md5sum", "--check", config["reference_checksums"]],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+        )
+        failed = [l for l in result.stdout.splitlines() if not l.endswith("OK")]
+        if failed:
+            for line in failed:
+                logger.error(line)
+            raise SystemExit("Reference checksum validation failed. Aborting.")
+        logger.info("All reference MD5s match")
+        logger.info("")
 
 #----- read in sample data
 samples_df = pd.read_csv(config["sample_csv"]).set_index("sample_id", drop=False)
