@@ -1,0 +1,81 @@
+name: Integration — Pipeline Run
+
+on:
+  pull_request:
+    branches: [**]
+  schedule:
+    # Weekly on Monday at 6am UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  integration:
+    name: Full isomiR path (trimming → miRtop → count table)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Conda / micromamba ──────────────────────────────
+      - uses: mamba-org/setup-micromamba@v1
+        with:
+          micromamba-version: "latest"
+          init-shell: bash
+          cache-environment: true
+          cache-downloads: true
+          post-cleanup: "all"
+
+      # ── Python for pytest output validation ─────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install pytest snakemake pandas
+
+      # ── Build test Bowtie1 hairpin index ─────────────────
+      - name: Install bowtie1 for index building
+        run: micromamba install -y -n base -c bioconda -c conda-forge bowtie
+
+      - name: Build bowtie1 hairpin index
+        run: |
+          bowtie-build \
+            tests/fixtures/refs/hairpin_subset.fa \
+            tests/fixtures/refs/hairpin_subset
+          echo "Bowtie1 index built"
+
+      # ── Run pipeline (isomiR path only) ──────────────────
+      - name: Run pipeline — isomiR path
+        run: |
+          snakemake \
+            --use-conda \
+            --conda-frontend mamba \
+            --configfile tests/fixtures/test_config.yaml \
+            --snakefile Snakefile \
+            --cores 2 \
+            --rerun-incomplete \
+            miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv \
+            mirtop/mirtop_stats.log \
+            fastQC/fastqc_multiqc_config.yaml
+
+      # ── Run trimming + FastQC independently ──────────────
+      - name: Run trimming and FastQC
+        run: |
+          snakemake \
+            --use-conda \
+            --conda-frontend mamba \
+            --configfile tests/fixtures/test_config.yaml \
+            --snakefile Snakefile \
+            --cores 2 \
+            --rerun-incomplete \
+            trimming/sample_1.R1.trim.fastq.gz \
+            trimming/sample_2.R1.trim.fastq.gz \
+            fastQC/sample_1.R1.trim_fastqc.html \
+            fastQC/sample_2.R1.trim_fastqc.html
+
+      # ── Validate outputs ──────────────────────────────────
+      - name: Validate pipeline outputs
+        run: pytest tests/integration/test_outputs.py -v --tb=short
