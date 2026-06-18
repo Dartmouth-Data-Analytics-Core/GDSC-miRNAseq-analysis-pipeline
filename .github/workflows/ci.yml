@@ -73,13 +73,6 @@ jobs:
         with:
           r-version: "4.3"
 
-      - name: Cache R packages
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.R_LIBS_USER }}
-          key: r-4.3-${{ hashFiles('.github/workflows/ci.yml') }}
-          restore-keys: r-4.3-
-
       - name: Install R packages
         run: |
           Rscript -e 'install.packages(c("dplyr", "tidyr", "readr", "stringr"), repos="https://cloud.r-project.org")'
