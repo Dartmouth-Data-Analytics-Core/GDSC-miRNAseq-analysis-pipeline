@@ -1,0 +1,15 @@
+Bootstrap: docker
+From: condaforge/mambaforge:latest
+
+%files
+    ../../env_config/picard.yaml /env.yaml
+
+%post
+    mamba env create -f /env.yaml -n picard
+    mamba clean --all -y
+
+%environment
+    export PATH="/opt/conda/envs/picard/bin:$PATH"
+
+%runscript
+    exec "$@"
