@@ -18,8 +18,8 @@ nextseq_trim: ""
 # Spike-in Info
 #-------------------------------------------#
 sample_with_spikein_finalvolume: 5 # if using NextFLEX, need to change this value
-bowtie_spikein_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/250805_smRNA/spike-in_pipeline/GDSC-miRNAseq-analysis-pipeline/refs/spikeins/spikeins_full"
-spikein_reference_core: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/251106_miRNA/refs/spikeins/spikeins_core.fa"
+bowtie_spikein_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/spikeins/spikeins/spikeins_full"
+spikein_reference_core: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/spikeins/spikeins_core.fa"
 
 #-------------------------------------------#
 # Software Paths for use with "--use-conda" 
@@ -46,7 +46,7 @@ hairpin_fa: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v
 # Zebrafish Reference File Paths (Bowtie2)
 # Note: Bowtie2 index needs to be GRCz11 to match super gtf for annotation
 #-------------------------------------------#
-padded_mature_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/snakemake/mirna-seq/DAC-RNAseq-pipeline/refs/mirbase_mature_drerio-padded/mirbase_mature_drerio-padded"
+padded_mature_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/dre/mirbase-zebrafish-padded/mirbase_mature_drerio-padded"
 bowtie2_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/D_rerio/bowtie2-index/GRCz11"
 #annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/D_rerio/V4.3.2.validated.gtf"
 annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/dre/DanRer11_smRNAs_super_sorted.gtf"
