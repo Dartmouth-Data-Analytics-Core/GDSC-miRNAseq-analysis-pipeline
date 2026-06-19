@@ -20,9 +20,9 @@ ac1303aaf24a18e19b26cf41dde322ee  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_ref
 e16b8ced98378bc8c23fcf3018a93ae3  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/mmu/mmu_hairpin_index/hairpins.4.ebwt
 9a1a207edc47dd105ad41f71b6e1691a  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/mmu/mmu_hairpin_index/hairpins.rev.1.ebwt
 f185c0b0697ba7ab9fc512ed7a74dc8a  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/mmu/mmu_hairpin_index/hairpins.rev.2.ebwt
-e2e126812106f405c6a6f4d07e14b78a  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/250805_smRNA/spike-in_pipeline/GDSC-miRNAseq-analysis-pipeline/refs/spikeins/spikeins_full.1.ebwt
-2f5409c33960378355fdc762556d867f  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/250805_smRNA/spike-in_pipeline/GDSC-miRNAseq-analysis-pipeline/refs/spikeins/spikeins_full.2.ebwt
-f717bcaef2a19129da10c76a491853ff  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/250805_smRNA/spike-in_pipeline/GDSC-miRNAseq-analysis-pipeline/refs/spikeins/spikeins_full.3.ebwt
-436d5bbfd4c6c0c6ede6de5ea0de1bd5  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/250805_smRNA/spike-in_pipeline/GDSC-miRNAseq-analysis-pipeline/refs/spikeins/spikeins_full.4.ebwt
-b48a790e18107c1d4053b2b8effce58f  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/250805_smRNA/spike-in_pipeline/GDSC-miRNAseq-analysis-pipeline/refs/spikeins/spikeins_full.rev.1.ebwt
-2eb2a1468721f85c83a470ef1969c5ad  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/Labs/howe/250805_smRNA/spike-in_pipeline/GDSC-miRNAseq-analysis-pipeline/refs/spikeins/spikeins_full.rev.2.ebwt
+e2e126812106f405c6a6f4d07e14b78a  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/spikeins/spikeins/spikeins_full.1.ebwt
+2f5409c33960378355fdc762556d867f  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/spikeins/spikeins/spikeins_full.2.ebwt
+f717bcaef2a19129da10c76a491853ff  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/spikeins/spikeins/spikeins_full.3.ebwt
+436d5bbfd4c6c0c6ede6de5ea0de1bd5  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/spikeins/spikeins/spikeins_full.4.ebwt
+b48a790e18107c1d4053b2b8effce58f  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/spikeins/spikeins/spikeins_full.rev.1.ebwt
+2eb2a1468721f85c83a470ef1969c5ad  /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/spikeins/spikeins/spikeins_full.rev.2.ebwt
