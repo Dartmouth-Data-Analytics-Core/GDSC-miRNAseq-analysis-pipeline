@@ -11,6 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache conda envs
+        uses: actions/cache@v4
+        with:
+          path: .snakemake/conda
+          key: conda-${{ hashFiles('env_config/*.yaml') }}
+
       - name: Build test indices
         uses: snakemake/snakemake-github-action@v2
         with:
