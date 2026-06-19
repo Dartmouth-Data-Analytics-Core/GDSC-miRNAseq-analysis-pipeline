@@ -23,9 +23,11 @@ rule mirbase_padded_aln:
         bowtie2_path = config["bowtie2_path"],
         padded_mature_index = config["padded_mature_index"],
         samtools_path = config["samtools_path"]
+    conda: "../../env_config/bowtie2.yaml"
+    container: "singularity/bowtie2.sif"
     threads: 12
-    resources: 
-        maxtime="2:00:00", 
+    resources:
+        maxtime="2:00:00",
         mem_mb=61440,
     message: "Aligning {wildcards.sample} reads to padded mature miRNA sequences with Bowtie2."
     log: "alignment_logs/mirbase_mature_padded/{sample}.bowtie2.mature.log"
@@ -35,7 +37,7 @@ rule mirbase_padded_aln:
         mkdir -p alignment_logs/mirbase_mature_padded
 
         #----- Align with Bowtie2 to padded reference
-        {params.bowtie2_path} \
+        bowtie2 \
             -x {params.padded_mature_index} \
             -U {input} \
             -p {threads} \
@@ -49,24 +51,24 @@ rule mirbase_padded_aln:
             -S mirbase_alignment/{params.sample}.mature.aln.sam 2> {log}
 
         #----- Subset reads for aligned length > 16 & < 28bp & any reads with gaps (XO/XG tags)
-        {params.samtools_path} \
+        samtools \
             view -h mirbase_alignment/{params.sample}.mature.aln.sam | \
             awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ((length($10) > 16 && length($10) <= 28) && ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/)) {{print $0}}' | \
             samtools view -Sb -o mirbase_alignment/{params.sample}.mature.bam
         
         #----- Filter for any reads with MAPQ <=1
-        {params.samtools_path} \
+        samtools \
             view -h -q 2 mirbase_alignment/{params.sample}.mature.bam > mirbase_alignment/{params.sample}.mature.sub.bam
         
         #----- Filter for any reads with > 2 mismatches 
-        {params.samtools_path} \
+        samtools \
             view -h mirbase_alignment/{params.sample}.mature.sub.bam | \
             awk 'BEGIN {{OFS="\t"}} /^@/ || ($0 ~ /NM:i:[0-2]($|\t)/)' | \
             samtools view -b > mirbase_alignment/{params.sample}.mature.sub2.bam
         
         #----- Sort and index BAM file 
-        {params.samtools_path} sort -@ 4 mirbase_alignment/{params.sample}.mature.sub2.bam > {output.aligned}
-        {params.samtools_path} index {output.aligned}
+        samtools sort -@ 4 mirbase_alignment/{params.sample}.mature.sub2.bam > {output.aligned}
+        samtools index {output.aligned}
 
         # remove intermediate bam files 
         rm -rf mirbase_alignment/{params.sample}.mature.bam
@@ -94,14 +96,16 @@ rule mature_mirbase_stats:
     params:
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
-    resources: 
-        cpus="10", 
-        maxtime="2:00:00", 
+    conda: "../../env_config/bowtie2.yaml"
+    container: "singularity/bowtie2.sif"
+    resources:
+        cpus="10",
+        maxtime="2:00:00",
         mem_mb=61440,
     message: "Collating {wildcards.sample} mirbase stats with Samtools"
     shell: """
-    {params.samtools_path} idxstats {input.matureStats} > {output.mature_idx}
-    {params.samtools_path} flagstat {input.matureStats} > {output.mature_flagstat}
+    samtools idxstats {input.matureStats} > {output.mature_idx}
+    samtools flagstat {input.matureStats} > {output.mature_flagstat}
 """
 
 #----- Rule to map unaligned to genome
@@ -118,16 +122,18 @@ rule genome_alignment:
         bowtie2_path = config["bowtie2_path"],
         bowtie2_genome_index = config["bowtie2_genome_index"],
         samtools_path = config["samtools_path"]
+    conda: "../../env_config/bowtie2.yaml"
+    container: "singularity/bowtie2.sif"
     threads: 12
     resources:
-        maxtime="2:00:00", 
+        maxtime="2:00:00",
         mem_mb=61440,
     message: "Aligning {wildcards.sample} mature unaligned reads to genome."
     log: "alignment_logs/genome_alignment/{sample}.bowtie2.genome.log"
     shell: """
     
         #----- Align mature unaligned reads to genome with bowtie2
-        {params.bowtie2_path} \
+        bowtie2 \
             -x {params.bowtie2_genome_index} \
             -U {input.unaligned} \
             -p {threads} \
@@ -135,18 +141,18 @@ rule genome_alignment:
             -S genome_alignment/{params.sample}.genome.aln.sam 2> {log}
         
         #----- Convert to bam
-        {params.samtools_path} \
+        samtools \
             view -Sb genome_alignment/{params.sample}.genome.aln.sam | \
-            {params.samtools_path} sort -@ 4 -o genome_alignment/{params.sample}.genome.srt.bam
+            samtools sort -@ 4 -o genome_alignment/{params.sample}.genome.srt.bam
 
         #----- Filter
-        {params.samtools_path} \
+        samtools \
             view -h genome_alignment/{params.sample}.genome.srt.bam | \
             awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/) {{print $0}}' | \
-            {params.samtools_path} view -Sb -o {output.genomeAln}
+            samtools view -Sb -o {output.genomeAln}
 
         #----- Index
-        {params.samtools_path} index {output.genomeAln}
+        samtools index {output.genomeAln}
     """
 
 #----- Define function selecting input BAM file for mirbase_stats (mature and hairpin)
@@ -168,14 +174,16 @@ rule genome_stats:
     params:
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
-    resources: 
-        cpus="10", 
-        maxtime="2:00:00", 
+    conda: "../../env_config/bowtie2.yaml"
+    container: "singularity/bowtie2.sif"
+    resources:
+        cpus="10",
+        maxtime="2:00:00",
         mem_mb=61440,
     message: "Collating {wildcards.sample} genome stats with Samtools"
     shell: """
-    {params.samtools_path} idxstats {input.genomeStats} > {output.genome_idx}
-    {params.samtools_path} flagstat {input.genomeStats} > {output.genome_flagstat}
+    samtools idxstats {input.genomeStats} > {output.genome_idx}
+    samtools flagstat {input.genomeStats} > {output.genome_flagstat}
 """
 
     
@@ -202,6 +210,7 @@ rule genome_featureCounts:
         pair_flag = "-p" if config["layout"]=="paired" else "",
         featurecounts_strand = config["featurecounts_strand"],
         annotation_gtf = config["annotation_gtf"]
+    container: "singularity/featurecounts.sif"
     threads: 32
     resources:
         cpus = "10",
@@ -211,7 +220,7 @@ rule genome_featureCounts:
     shell: """
     
         #----- Run FeatureCounts
-        {params.featurecounts_path} \
+        featureCounts \
             -T {threads} \
             -Q 10 \
             {params.pair_flag} \
@@ -253,6 +262,7 @@ rule alignment_metrics_counts:
         "metrics/mirna_genome_alignment_metrics.xlsx",
     conda:
         "../../env_config/featurecounts.yaml",
+    container: "singularity/featurecounts.sif"
     params:
         use_umi = USE_UMITOOLS,
     resources: cpus="1", maxtime="8:00:00", mem_mb=2048,

@@ -18,18 +18,8 @@ CONFIG="human"
 CONDA_BASE="/optnfs/common/miniconda3"
 SNAKEMAKE_ENV="/dartfs/rc/nosnapshots/G/GMBSR_refs/envs/snakemake"
 CONDA_PREFIX_PATH="/dartfs/rc/nosnapshots/G/GMBSR_refs/envs/GDSC-Clover-Seq"
-CONTAINERS_PATH="/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/singularity-containers/miRNA-v2/"
 source "${CONDA_BASE}/etc/profile.d/conda.sh"
 conda activate "${SNAKEMAKE_ENV}"
-
-#----- Symlink Containers (need to unlink at end)
-echo "Symlinking miRNA-v2 Containers..."
-if [ ! -e "$WD/singularity" ]; then
-    ln -s "$CONTAINERS_PATH" \
-    singularity && echo -e "✓ Container Symlink created\n"
-else
-    echo -e "✓ Containers already linked\n"
-fi
 
 #----- LOGGER
 cat <<EOF
@@ -44,7 +34,7 @@ Work dir:   $(pwd)
 Conda base: $CONDA_BASE
 Snakemake:  $SNAKEMAKE_ENV
 Binary:     $(which snakemake)
-SIFs:       $CONTAINERS_PATH
+Conda pfx:  $CONDA_PREFIX_PATH
 Organism:   $CONFIG
 #───────────────────────── Initialization ──────────────────────────#
 
@@ -54,29 +44,19 @@ EOF
 #----- Make slurm logs
 mkdir -p slurm_logs
 
-#----- Singularity arguments
-SINGARGS="--bind /dartfs-hpc --bind /dartfs"
-
 #----- Invoke Snakemake
 snakemake -s \
     Snakefile \
     --configfile prebuilt_configs/"${CONFIG}"_config.yaml \
     --profile cluster_profile \
     -T 2 \
-    --use-singularity \
-    --singularity-args "${SINGARGS}"
+    --use-conda \
+    --conda-frontend conda \
+    --conda-prefix /dartfs/rc/nosnapshots/G/GMBSR_refs/envs/miRNAseq
 
 #----- Capture exit status
 SNAKEMAKE_EXIT=$?
 
-#----- Cleanup: Remove symlink
-echo ""
-echo "Cleaning up..."
-if [ -L "$WD/singularity" ]; then
-    unlink "$WD/singularity"
-    echo "✓ Container symlink removed"
-fi
-   
 #----- Final status
 echo ""
 echo "#------------------------ Job Complete ------------------------#"
