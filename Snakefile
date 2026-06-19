@@ -120,6 +120,7 @@ rule all:
         "multiqc_report.html",
     conda:
         "env_config/multiqc.yaml",
+    container: "singularity/multiqc.sif"
     resources: cpus="10", maxtime="2:00:00", mem_mb=61440,
     params:
         multiqc=config["multiqc_path"],
@@ -178,6 +179,7 @@ rule trimming:
         nextseq_trim = config["nextseq_trim"],
     conda:
         "env_config/cutadapt.yaml",
+    container: "singularity/cutadapt.sif"
     resources: 
         cpus="10", 
         maxtime="2:00:00", 
@@ -219,6 +221,7 @@ rule seqcluster:
         sample = lambda wildcards: wildcards.sample,
         seqcluster_path = config["seqcluster_path"]
     conda: "env_config/seqcluster.yaml"
+    container: "singularity/seqcluster.sif"
     threads: 8
     resources:
         maxtime="2:00:00",
@@ -259,6 +262,7 @@ rule collapsed_hairpin_aln:
         hairpin_index = config["bowtie1_hairpin_index"],
         samtools_path = config["samtools_path"]
     conda: "env_config/bowtie1.yaml"
+    container: "singularity/bowtie1.sif"
     threads: 8
     resources:
         maxtime="2:00:00",
@@ -271,7 +275,7 @@ rule collapsed_hairpin_aln:
         mkdir -p alignment_logs/seqcluster
 
         #----- Align collapsed reads to hairpins
-        {params.bowtie1_path} \
+        bowtie \
             --threads {threads} \
             --sam \
             -x {params.hairpin_index} \
@@ -285,10 +289,10 @@ rule collapsed_hairpin_aln:
             --chunkmbs 2048 \
             {input.seqcluster_fastq} \
             2>| >(tee {log} >&2) \
-            | {params.samtools_path} view -@ 24 -bS - \
-            | {params.samtools_path} sort -@ 24 -o {output.collapsed_aln}
+            | samtools view -@ 24 -bS - \
+            | samtools sort -@ 24 -o {output.collapsed_aln}
 
-        {params.samtools_path} index {output.collapsed_aln}
+        samtools index {output.collapsed_aln}
     
     """
 
@@ -308,14 +312,15 @@ rule hairpin_stats:
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
     conda: "env_config/bowtie1.yaml"
+    container: "singularity/bowtie1.sif"
     resources:
         cpus="10",
         maxtime="2:00:00",
         mem_mb=61440,
     message: "Collating {wildcards.sample} mirbase stats with Samtools"
     shell: """
-    {params.samtools_path} idxstats {input.hairpinStats} > {output.hp_idx}
-    {params.samtools_path} flagstat {input.hairpinStats} > {output.hp_flagstat}
+    samtools idxstats {input.hairpinStats} > {output.hp_idx}
+    samtools flagstat {input.hairpinStats} > {output.hp_flagstat}
 """
 
 #----- Rule to run miRtop
@@ -329,6 +334,7 @@ rule miRtop:
         mirtop_gff = "mirtop/{sample}.hairpin.gff",
         hairpin_tsv = "mirtop/{sample}.hairpin.tsv"
     conda: "env_config/mirtop.yaml"
+    container: "singularity/mirtop.sif"
     params:
         sample = lambda wildcards:  wildcards.sample,
         hairpin_fa = config["hairpin_fa"],
@@ -377,6 +383,7 @@ rule mirtop_stats:
     output:
         "mirtop/mirtop_stats.log"
     conda: "env_config/mirtop.yaml"
+    container: "singularity/mirtop.sif"
     resources:
         cpus="10", 
         maxtime="2:00:00", 
@@ -401,6 +408,7 @@ rule pivot_isomirs_longer:
     output:
         isomiR_long = "mirtop/temp/{sample}.hairpin_long.csv"
     conda: "env_config/r_env.yaml"
+    container: "singularity/r_env.sif"
     params:
         sample = lambda wildcards:  wildcards.sample,
     resources:
@@ -427,6 +435,7 @@ rule collate_isomir_table:
     output:
         "miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv"
     conda: "env_config/r_env.yaml"
+    container: "singularity/r_env.sif"
     resources:
         cpus="10", 
         maxtime="2:00:00", 
@@ -458,6 +467,7 @@ rule pca_plots:
         "plots/PCA_top_PCA_variance_bar.png",
     conda:
         "env_config/pcaplot.yaml", 
+    container: "singularity/pcaplot.sif"
     resources: cpus="1", maxtime="1:00:00", mem_mb=2000,
     message: "Running PCA"
     shell: """

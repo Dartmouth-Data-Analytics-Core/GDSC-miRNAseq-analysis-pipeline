@@ -6,6 +6,7 @@ rule make_fastqc_config:
         "fastQC/fastqc_multiqc_config.yaml"
     params:
         layout = config["layout"]
+    container: "singularity/fastqc.sif"
     resources:
         cpus="10", 
         maxtime="2:00:00", 
@@ -42,6 +43,7 @@ rule trimmed_fastqc:
     params:
         sample = lambda wildcards:  wildcards.sample,
         fastqc_path = config["fastqc_path"]
+    container: "singularity/fastqc.sif"
     threads: 8
     resources:
         cpus="10", 
@@ -54,7 +56,7 @@ rule trimmed_fastqc:
         mkdir -p fastQC
 
         #----- Run fastQC
-        {params.fastqc_path} \
+        fastqc \
             --threads {threads} \
             -o fastQC \
             {input}

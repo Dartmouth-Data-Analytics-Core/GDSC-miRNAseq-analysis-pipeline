@@ -13,6 +13,7 @@ rule spikein_bbduk:
     threads: 8
     conda:
         "../../env_config/bbmap.yaml"
+    container: "singularity/bbmap.sif"
     message: "Generating {wildcards.sample} spike-in data with bbmap."
     shell: """
         mkdir -p spikein_alignment
@@ -40,6 +41,7 @@ rule spikein_counts:
         "spikein_counts/spikein.readcounts.tsv"
     params:
         samples=lambda wildcards, input: [path.split("/")[-1].replace(".stats","") for path in input]
+    container: "singularity/bbduk.sif"
     resources: cpus="10", maxtime="4:00:00", mem_mb=61440,
     message: "Generating spike-in counts."
     shell: """
@@ -67,6 +69,7 @@ rule mappingBowtieSpikeIns:
     log: "alignment_logs/spike-ins/{sample}.bowtie1.spikein.aln.log" 
     conda:
         "../../env_config/bowtie1.yaml"
+    container: "singularity/bowtie1.sif"
     message: "Aligning {wildcards.sample} spike-in data with Bowtie"
     shell:
         """
@@ -92,6 +95,7 @@ rule normalize_data_spikein:
         "spikein_metrics/normalized_scalefactor_canon_and_isomir_counts.tsv"
     conda:
         "../../env_config/r_env.yaml"
+    container: "singularity/r_env.sif"
     resources: cpus="10", maxtime="4:00:00", mem_mb=61440,
     params:
         final_volume = config["sample_with_spikein_finalvolume"]
