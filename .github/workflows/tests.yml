@@ -1,10 +1,7 @@
-name: Tests
+name: Test-run
 
 on:
-  push:
-    branches: [dev-CI]
   pull_request:
-    branches: [main]
 
 jobs:
   Testing:
