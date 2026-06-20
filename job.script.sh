@@ -22,15 +22,6 @@ CONTAINERS_PATH="/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/singula
 source "${CONDA_BASE}/etc/profile.d/conda.sh"
 conda activate "${SNAKEMAKE_ENV}"
 
-#----- Symlink Containers (need to unlink at end)
-echo "Symlinking miRNA-v2 Containers..."
-if [ ! -e "$WD/singularity" ]; then
-    ln -s "$CONTAINERS_PATH" \
-    singularity && echo -e "✓ Container Symlink created\n"
-else
-    echo -e "✓ Containers already linked\n"
-fi
-
 #----- LOGGER
 cat <<EOF
 #───────────────────────── Initialization ──────────────────────────#
@@ -69,14 +60,6 @@ snakemake -s \
 #----- Capture exit status
 SNAKEMAKE_EXIT=$?
 
-#----- Cleanup: Remove symlink
-echo ""
-echo "Cleaning up..."
-if [ -L "$WD/singularity" ]; then
-    unlink "$WD/singularity"
-    echo "✓ Container symlink removed"
-fi
-   
 #----- Final status
 echo ""
 echo "#------------------------ Job Complete ------------------------#"
