@@ -18,7 +18,7 @@ The GDSC miRNA-Seq pipeline provides preprocessing and quantification of microRN
 
 ## Summary
 
-The pipeline supports the use of Conda environments for all software dependencies as well as singularity containers. Environment files are located in [`env_config/`](env_config/). Singularity images are hosted by the GDSC. 
+The pipeline supports the use of Conda environments for all software dependencies (`job.script.conda.sh`) as well as singularity containers hosted by Github Container Repository (`job.script.sh`).
 
 To run this pipeline:
 1. Populate [`sample_fastq_list.csv`](sample_fastq_list.csv) with your sample information
