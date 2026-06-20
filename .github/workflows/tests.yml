@@ -30,7 +30,7 @@ jobs:
         with:
           directory: .
           snakefile: tests/build_test_refs.smk
-          args: "--use-singularity --singularity-args '--no-home' --cores 2 --show-failed-logs"
+          args: "--use-singularity --cores 2 --show-failed-logs"
 
       - name: Run pipeline
         uses: snakemake/snakemake-github-action@v2
@@ -40,7 +40,6 @@ jobs:
           args: >-
             --configfile tests/fixtures/test_config.yaml
             --use-singularity
-            --singularity-args '--no-home'
             --show-failed-logs
             --cores 2
 
