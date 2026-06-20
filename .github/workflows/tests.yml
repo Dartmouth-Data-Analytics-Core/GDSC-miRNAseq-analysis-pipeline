@@ -25,7 +25,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .snakemake/singularity
-          key: singularity-${{ hashFiles('env_config/*.yaml') }}
+          key: singularity-${{ hashFiles('Snakefile', '**/*.smk') }}
 
       - name: Build test indices
         run: >-
