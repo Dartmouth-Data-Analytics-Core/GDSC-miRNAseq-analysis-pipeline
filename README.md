@@ -63,13 +63,15 @@ Populate [`sample_fastq_list.csv`](sample_fastq_list.csv) with your sample infor
 **2. Job submission script**
 
 >[!IMPORTANT]
-> You must set the `CONFIG` variable in [`job.script.sh`](job.script.sh) before submitting. Accepted values are `human`, `mouse`, or `zebrafish` (case-sensitive).
+> You must set the `CONFIG` variable in either [`job.script.sh`](job.script.sh) (if using singularity) or [`job.script.conda.sh`](job.script.conda.sh`) before submitting. Accepted values are `human`, `mouse`, or `zebrafish` (case-sensitive).
 
 ```shell
 CONFIG="human"
 ```
 
 Setting `CONFIG` automatically selects the correct prebuilt config file (`prebuilt_configs/${CONFIG}_config.yaml`). No other path changes are required when using a prebuilt config.
+
+For singularity and conda: a prefix for where to install environments can be set in the Snakemake call through either `singularity-prefix` or `conda-prefix` argument. For the former, GHCR-hosted container images will be pulled down into the specified location. For the latter, conda environments will be built in the specified location. This downloading/building only occurs once and then concurrent runs can point to that path for ready usage. 
 
 **3. Pipeline parameters**
 
