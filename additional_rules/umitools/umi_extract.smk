@@ -14,7 +14,7 @@ rule umitools:
         "umi_reads/{sample}.umi.fastq.gz",
         "umi_reads/{sample}.umi.log.txt",
     conda: "../../env_config/umitools.yaml"
-    container: "singularity/umitools.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/umitools:2.0"
     params:
         sample = lambda wildcards:  wildcards.sample,
         umitools_path = config["umitools_path"],
@@ -40,7 +40,7 @@ rule mirbase_dedup:
     output:
         mature_dedup = "mirbase_alignment/{sample}.mature.srt.dedup.bam",
     conda: "../../env_config/umitools.yaml"
-    container: "singularity/umitools.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/umitools:2.0"
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie1_path = config["bowtie1_path"],
@@ -72,7 +72,7 @@ rule genome_dedup:
     output:
         genDedup = "genome_alignment/{sample}.genome.srt.filt.dedup.bam",
     conda: "../../env_config/umitools.yaml"
-    container: "singularity/umitools.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/umitools:2.0"
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie_path = config["bowtie_path"],

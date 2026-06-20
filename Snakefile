@@ -17,7 +17,7 @@ USE_SPIKEINS = config.get("use_spikeins", False)
 USE_UMITOOLS = config.get("use_umitools", False)
 
 onstart:
-    if "reference_checksums" in config:
+    if config.get("reference_checksums"):
         logger.info("Ensuring reference md5s match manifest:")
         result = subprocess.run(
             ["md5sum", "--check", config["reference_checksums"]],
@@ -120,7 +120,7 @@ rule all:
         "multiqc_report.html",
     conda:
         "env_config/multiqc.yaml",
-    container: "singularity/multiqc.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/multiqc:2.0"
     resources: cpus="10", maxtime="2:00:00", mem_mb=61440,
     params:
         multiqc=config["multiqc_path"],
@@ -179,7 +179,7 @@ rule trimming:
         nextseq_trim = config["nextseq_trim"],
     conda:
         "env_config/cutadapt.yaml",
-    container: "singularity/cutadapt.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/cutadapt:2.0"
     resources: 
         cpus="10", 
         maxtime="2:00:00", 
@@ -221,7 +221,7 @@ rule seqcluster:
         sample = lambda wildcards: wildcards.sample,
         seqcluster_path = config["seqcluster_path"]
     conda: "env_config/seqcluster.yaml"
-    container: "singularity/seqcluster.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/seqcluster:2.0"
     threads: 8
     resources:
         maxtime="2:00:00",
@@ -262,7 +262,7 @@ rule collapsed_hairpin_aln:
         hairpin_index = config["bowtie1_hairpin_index"],
         samtools_path = config["samtools_path"]
     conda: "env_config/bowtie1.yaml"
-    container: "singularity/bowtie1.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/bowtie1:2.0"
     threads: 8
     resources:
         maxtime="2:00:00",
@@ -312,7 +312,7 @@ rule hairpin_stats:
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
     conda: "env_config/bowtie1.yaml"
-    container: "singularity/bowtie1.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/bowtie1:2.0"
     resources:
         cpus="10",
         maxtime="2:00:00",
@@ -334,7 +334,7 @@ rule miRtop:
         mirtop_gff = "mirtop/{sample}.hairpin.gff",
         hairpin_tsv = "mirtop/{sample}.hairpin.tsv"
     conda: "env_config/mirtop.yaml"
-    container: "singularity/mirtop.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/mirtop:2.0"
     params:
         sample = lambda wildcards:  wildcards.sample,
         hairpin_fa = config["hairpin_fa"],
@@ -383,7 +383,7 @@ rule mirtop_stats:
     output:
         "mirtop/mirtop_stats.log"
     conda: "env_config/mirtop.yaml"
-    container: "singularity/mirtop.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/mirtop:2.0"
     resources:
         cpus="10", 
         maxtime="2:00:00", 
@@ -408,7 +408,7 @@ rule pivot_isomirs_longer:
     output:
         isomiR_long = "mirtop/temp/{sample}.hairpin_long.csv"
     conda: "env_config/r_env.yaml"
-    container: "singularity/r_env.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/r_env:2.0"
     params:
         sample = lambda wildcards:  wildcards.sample,
     resources:
@@ -435,7 +435,7 @@ rule collate_isomir_table:
     output:
         "miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv"
     conda: "env_config/r_env.yaml"
-    container: "singularity/r_env.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/r_env:2.0"
     resources:
         cpus="10", 
         maxtime="2:00:00", 
@@ -467,7 +467,7 @@ rule pca_plots:
         "plots/PCA_top_PCA_variance_bar.png",
     conda:
         "env_config/pcaplot.yaml", 
-    container: "singularity/pcaplot.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/pcaplot:2.0"
     resources: cpus="1", maxtime="1:00:00", mem_mb=2000,
     message: "Running PCA"
     shell: """

@@ -1,7 +1,16 @@
 ##gff-version 3
-#date: 2024-01-01
-#organism: Danio rerio
-#Test fixture: 5 zebrafish miRNA hairpins for CI testing
+##date 2018-3-5
+#
+# Chromosomal coordinates of Danio rerio microRNAs
+# microRNAs:               miRBase v22
+# genome-build-id:         GRCz11
+# genome-build-accession:  NCBI_Assembly:GCA_000002035.4
+#
+# Hairpin precursor sequences have type "miRNA_primary_transcript". 
+# Note, these sequences do not represent the full primary transcript, 
+# rather a predicted stem-loop portion that includes the precursor 
+# miRNA. Mature sequences have type "miRNA".
+#
 dre-mir-21	miRBase	miRNA_primary_transcript	1	96	.	+	.	ID=MI0001530;Alias=MI0001530;Name=dre-mir-21
 dre-mir-21	miRBase	miRNA	21	43	.	+	.	ID=MIMAT0001787;Alias=MIMAT0001787;Name=dre-miR-21;Derives_from=MI0001530
 dre-mir-21	miRBase	miRNA	54	76	.	-	.	ID=MIMAT0003123;Alias=MIMAT0003123;Name=dre-miR-21-3p;Derives_from=MI0001530

@@ -1,38 +1,42 @@
-name: Tests
+name: Test-run
 
 on:
-  push:
   pull_request:
-    branches: [main]
 
 jobs:
   Testing:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache conda envs
-        uses: actions/cache@v4
+      - uses: actions/setup-python@v5
         with:
-          path: .snakemake/conda
-          key: conda-${{ hashFiles('env_config/*.yaml') }}
+          python-version: "3.11"
+
+      - uses: eWaterCycle/setup-apptainer@v2
+        with:
+          apptainer-version: 1.3.3
+
+      - run: pip install snakemake pandas
+
+      - uses: actions/cache@v4
+        with:
+          path: .snakemake/singularity
+          key: singularity-${{ hashFiles('Snakefile', '**/*.smk') }}
 
       - name: Build test indices
-        uses: snakemake/snakemake-github-action@v2
-        with:
-          directory: .
-          snakefile: tests/build_test_refs.smk
-          args: "--sdm conda --cores 2 --conda-cleanup-pkgs cache"
+        run: >-
+          snakemake --snakefile tests/build_test_refs.smk
+          --use-singularity --cores 2 --show-failed-logs
 
       - name: Run pipeline
-        uses: snakemake/snakemake-github-action@v2
-        with:
-          directory: .
-          snakefile: Snakefile
-          args: "--configfile tests/fixtures/test_config.yaml --sdm conda --show-failed-logs --cores 2 --conda-cleanup-pkgs cache"
+        run: >-
+          snakemake --snakefile Snakefile
+          --configfile tests/fixtures/test_config.yaml
+          --use-singularity --cores 2 --show-failed-logs
 
       - name: Upload logs
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: snakemake-logs

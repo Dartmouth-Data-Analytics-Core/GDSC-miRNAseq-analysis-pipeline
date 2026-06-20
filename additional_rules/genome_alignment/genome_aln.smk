@@ -24,7 +24,7 @@ rule mirbase_padded_aln:
         padded_mature_index = config["padded_mature_index"],
         samtools_path = config["samtools_path"]
     conda: "../../env_config/bowtie2.yaml"
-    container: "singularity/bowtie2.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/bowtie2:2.0"
     threads: 12
     resources:
         maxtime="2:00:00",
@@ -97,7 +97,7 @@ rule mature_mirbase_stats:
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
     conda: "../../env_config/bowtie2.yaml"
-    container: "singularity/bowtie2.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/bowtie2:2.0"
     resources:
         cpus="10",
         maxtime="2:00:00",
@@ -123,7 +123,7 @@ rule genome_alignment:
         bowtie2_genome_index = config["bowtie2_genome_index"],
         samtools_path = config["samtools_path"]
     conda: "../../env_config/bowtie2.yaml"
-    container: "singularity/bowtie2.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/bowtie2:2.0"
     threads: 12
     resources:
         maxtime="2:00:00",
@@ -175,7 +175,7 @@ rule genome_stats:
         sample = lambda wildcards:  wildcards.sample,
         samtools_path = config["samtools_path"],
     conda: "../../env_config/bowtie2.yaml"
-    container: "singularity/bowtie2.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/bowtie2:2.0"
     resources:
         cpus="10",
         maxtime="2:00:00",
@@ -210,7 +210,7 @@ rule genome_featureCounts:
         pair_flag = "-p" if config["layout"]=="paired" else "",
         featurecounts_strand = config["featurecounts_strand"],
         annotation_gtf = config["annotation_gtf"]
-    container: "singularity/featurecounts.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/featurecounts:2.0"
     threads: 32
     resources:
         cpus = "10",
@@ -262,7 +262,7 @@ rule alignment_metrics_counts:
         "metrics/mirna_genome_alignment_metrics.xlsx",
     conda:
         "../../env_config/featurecounts.yaml",
-    container: "singularity/featurecounts.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/featurecounts:2.0"
     params:
         use_umi = USE_UMITOOLS,
     resources: cpus="1", maxtime="8:00:00", mem_mb=2048,

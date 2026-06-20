@@ -6,7 +6,7 @@ rule make_fastqc_config:
         "fastQC/fastqc_multiqc_config.yaml"
     params:
         layout = config["layout"]
-    container: "singularity/fastqc.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/fastqc:2.0"
     resources:
         cpus="10", 
         maxtime="2:00:00", 
@@ -43,7 +43,7 @@ rule trimmed_fastqc:
     params:
         sample = lambda wildcards:  wildcards.sample,
         fastqc_path = config["fastqc_path"]
-    container: "singularity/fastqc.sif"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/fastqc:2.0"
     threads: 8
     resources:
         cpus="10", 
