@@ -20,6 +20,8 @@ jobs:
           sudo sysctl kernel.unprivileged_userns_clone=1
           sudo sysctl user.max_user_namespaces=15000
           sudo apptainer config fakeroot --add runner
+          sudo systemctl reload apparmor || true
+          sudo apparmor_parser -r /etc/apparmor.d/apptainer || true
 
       - name: Cache Singularity images
         uses: actions/cache@v4
