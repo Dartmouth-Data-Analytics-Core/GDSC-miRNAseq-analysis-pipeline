@@ -18,6 +18,8 @@ jobs:
           wget https://github.com/apptainer/apptainer/releases/download/v${APPTAINER_VERSION}/apptainer_${APPTAINER_VERSION}_amd64.deb
           sudo apt-get install -y ./apptainer_${APPTAINER_VERSION}_amd64.deb
           sudo sysctl kernel.unprivileged_userns_clone=1
+          sudo sysctl user.max_user_namespaces=15000
+          apptainer config fakeroot --add runner
 
       - name: Cache Singularity images
         uses: actions/cache@v4
