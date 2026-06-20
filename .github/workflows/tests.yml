@@ -37,7 +37,6 @@ jobs:
           snakemake \
             --snakefile tests/build_test_refs.smk \
             --use-singularity \
-            --singularity-args="--no-home" \
             --cores 2 \
             --show-failed-logs \
             --printshellcmds 2>&1 |
@@ -61,7 +60,6 @@ jobs:
             --snakefile Snakefile \
             --configfile tests/fixtures/test_config.yaml \
             --use-singularity \
-            --singularity-args="--no-home" \
             --cores 2 \
             --show-failed-logs \
             --printshellcmds 2>&1 |
