@@ -17,7 +17,7 @@ USE_SPIKEINS = config.get("use_spikeins", False)
 USE_UMITOOLS = config.get("use_umitools", False)
 
 onstart:
-    if "reference_checksums" in config:
+    if config.get("reference_checksums"):
         logger.info("Ensuring reference md5s match manifest:")
         result = subprocess.run(
             ["md5sum", "--check", config["reference_checksums"]],
