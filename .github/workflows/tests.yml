@@ -7,8 +7,21 @@ on:
     branches: [main]
 
 jobs:
-  Testing:
+  linting:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linting
+        uses: snakemake/snakemake-github-action@v1.17.0
+        with:
+          directory: '.'
+          snakefile: Snakefile
+          args: '--lint'
+
+  run-workflow:
+    runs-on: ubuntu-latest
+    needs:
+      - linting
     steps:
       - uses: actions/checkout@v4
 
@@ -30,22 +43,18 @@ jobs:
           key: singularity-${{ hashFiles('env_config/*.yaml') }}
 
       - name: Build test indices
-        uses: snakemake/snakemake-github-action@v2
+        uses: snakemake/snakemake-github-action@v1.17.0
         with:
-          directory: .
+          directory: '.'
           snakefile: tests/build_test_refs.smk
-          args: "--use-singularity --cores 2 --show-failed-logs"
+          args: "--use-singularity --singularity-args '--fakeroot' --cores 2 --show-failed-logs"
 
       - name: Run pipeline
-        uses: snakemake/snakemake-github-action@v2
+        uses: snakemake/snakemake-github-action@v1.17.0
         with:
-          directory: .
+          directory: '.'
           snakefile: Snakefile
-          args: >-
-            --configfile tests/fixtures/test_config.yaml
-            --use-singularity
-            --show-failed-logs
-            --cores 2
+          args: "--configfile tests/fixtures/test_config.yaml --use-singularity --singularity-args '--fakeroot' --show-failed-logs --cores 2"
 
       - name: Upload logs
         if: always()
