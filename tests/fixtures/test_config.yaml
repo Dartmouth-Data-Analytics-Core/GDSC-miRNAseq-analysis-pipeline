@@ -5,6 +5,7 @@
 # Spike-ins: off   UMI tools: off
 #-------------------------------------------#
 
+reference_checksums: ""
 sample_csv: "tests/fixtures/sample_fastq_list.csv"
 layout: "single"
 use_spikeins: false
