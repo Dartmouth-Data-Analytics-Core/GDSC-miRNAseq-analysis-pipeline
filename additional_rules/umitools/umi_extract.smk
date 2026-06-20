@@ -13,6 +13,8 @@ rule umitools:
     output: 
         "umi_reads/{sample}.umi.fastq.gz",
         "umi_reads/{sample}.umi.log.txt",
+    conda: "../../env_config/umitools.yaml"
+    container: "singularity/umitools.sif"
     params:
         sample = lambda wildcards:  wildcards.sample,
         umitools_path = config["umitools_path"],
@@ -20,7 +22,7 @@ rule umitools:
     resources: cpus="10", maxtime="2:00:00", mem_mb=61440,
     message: "Extracting {wildcards.sample} UMIs."
     shell: """
-        {params.umitools_path} extract \
+        umi_tools extract \
             --extract-method=regex \
             --bc-pattern='.+(?P<discard_1>AACTGTAGGCACCATCAAT){{s<=2}}(?P<umi_1>.{{12}})(?P<discard_2>.+)' \
             -I {input} \
@@ -37,6 +39,8 @@ rule mirbase_dedup:
         mature = "mirbase_alignment/{sample}.mature.srt.bam",
     output:
         mature_dedup = "mirbase_alignment/{sample}.mature.srt.dedup.bam",
+    conda: "../../env_config/umitools.yaml"
+    container: "singularity/umitools.sif"
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie1_path = config["bowtie1_path"],
@@ -48,13 +52,13 @@ rule mirbase_dedup:
     shell: """
 
     #----- Deduplicate mature and index
-    {params.umitools_path} \
+    umi_tools \
         dedup \
         --method=unique \
         -I {input.mature} \
         -S {output.mature_dedup}
 
-    {params.samtools_path} \
+    samtools \
         index {output.mature_dedup}
         
 """
@@ -67,6 +71,8 @@ rule genome_dedup:
         genAln = "genome_alignment/{sample}.genome.srt.filt.bam",
     output:
         genDedup = "genome_alignment/{sample}.genome.srt.filt.dedup.bam",
+    conda: "../../env_config/umitools.yaml"
+    container: "singularity/umitools.sif"
     params:
         sample = lambda wildcards:  wildcards.sample,
         bowtie_path = config["bowtie_path"],
@@ -78,7 +84,7 @@ rule genome_dedup:
     shell: """
 
         #----- Deduplicate
-        {params.umitools_path} \
+        umi_tools \
             dedup \
             --method=unique \
             -I {input.genAln} \
