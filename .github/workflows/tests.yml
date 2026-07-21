@@ -1,0 +1,43 @@
+name: Test-run
+
+on:
+  pull_request:
+
+jobs:
+  Testing:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: eWaterCycle/setup-apptainer@v2
+        with:
+          apptainer-version: 1.3.3
+
+      - run: pip install snakemake pandas
+
+      - uses: actions/cache@v4
+        with:
+          path: .snakemake/singularity
+          key: singularity-${{ hashFiles('Snakefile', '**/*.smk') }}
+
+      - name: Build test indices
+        run: >-
+          snakemake --snakefile tests/build_test_refs.smk
+          --use-singularity --cores 2 --show-failed-logs
+
+      - name: Run pipeline
+        run: >-
+          snakemake --snakefile Snakefile
+          --configfile tests/fixtures/test_config.yaml
+          --use-singularity --cores 2 --show-failed-logs
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snakemake-logs
+          path: .snakemake/log/

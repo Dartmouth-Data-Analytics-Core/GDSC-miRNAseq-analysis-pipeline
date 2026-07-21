@@ -1,0 +1,56 @@
+#-------------------------------------------#
+# General Setting 
+#-------------------------------------------#
+
+#----- sample meta data file
+sample_csv: "sample_fastq_list.csv"
+sps: "hsa"      # One of "hsa" or "dre" or "mmu"
+
+#----- sequencing config
+layout: "single"      # One of "single" or "paired"
+use_spikeins: true   # Boolean: true or false
+use_umitools: false   # Boolean: true or false
+adapter_3prime: "AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC"
+nextseq_trim: "--nextseq-trim=30" # cutadapt flag and value for NextSeq quality trimming; set to "" to disable
+#nextseq_trim: ""
+
+#-------------------------------------------#
+# Spike-in Info
+#-------------------------------------------#
+sample_with_spikein_finalvolume: 8 # if using NextFLEX, need to change this value
+bowtie_spikein_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/spikeins/spikeins/spikeins_full"
+spikein_reference_core: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/spikeins/spikeins_core.fa"
+
+#-------------------------------------------#
+# Software Paths for use with "--use-conda" 
+#-------------------------------------------#
+umitools_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/umi-tools/umi_tools"
+samtools_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/samtools/samtools-1.11/samtools"
+bowtie1_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/bowtie/bowtie"
+bowtie2_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/bowtie2/bowtie2-2.4.4-linux-x86_64/bowtie2"
+seqcluster_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/seqcluster/bin/seqcluster"
+multiqc_path: "multiqc"
+python_mirna_venv: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/tools/mirna-python-venv/bin/python3"
+featurecounts_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/featurecounts/subread-2.0.1-Linux-x86_64/bin/featureCounts"
+fastqc_path: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/fastqc/FastQC/fastqc"
+
+#-------------------------------------------#
+# Human Reference File Paths (Bowtie 1)
+#-------------------------------------------#
+bowtie1_hairpin_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/hsa/hsa_hairpin_index/hairpins"
+hairpin_gff: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/hsa/hsa.gff3"
+hairpin_fa: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/hsa/hsa_processed_hairpins.fa"
+
+#-------------------------------------------#
+# Human Reference File Paths (Bowtie 2)
+#-------------------------------------------#
+padded_mature_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/hsa/mirbase-human-hg38-padded/mirbase-human-hg38-padded"
+bowtie2_genome_index: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/human/hg38-bowtie2-index/hg38-bowtie2-index"
+#annotation_gtf: "/dartfs/rc/nosnapshots/G/GMBSR_refs/Hsapiens/GRCh38/downloads/gencode.v45.annotation.gtf"
+annotation_gtf: "/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/genomic_references/miRNA/miRNA_v2/hsa/hg38_smRNAs_super_sorted.gtf"
+#-------------------------------------------#
+# Utilities
+#-------------------------------------------#
+#umi_bc_pattern: "'.+(?P<discard_1>AACTGTAGGCACCATCAAT){{s<=2}}(?P<umi_1>.{12})(?P<discard_2>.+)'"
+featurecounts_strand: "0" #1 for first read transcription strand, 2 for second.
+reference_checksums: "prebuilt_configs/ref_md5s/human_refs.md5"

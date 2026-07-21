@@ -1,335 +1,487 @@
-#####~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# setup environment
-#####~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# GDSC miRNA Pipeline v2
+#
+# Pipeline for the quantification of miRNAs, isomiRs, and other small RNAs
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+import subprocess
 import pandas as pd
+import pprint
+from snakemake.utils import validate
 
-# set config file
+#----- set config file if not defined in job script
 configfile: "config.yaml"
+validate(config, schema="schemas/config.schema.yaml")
 
-# read in sample data
-samples_df = pd.read_table(config["sample_tsv"]).set_index("sample_id", drop=False)
+USE_SPIKEINS = config.get("use_spikeins", False)
+USE_UMITOOLS = config.get("use_umitools", False)
+
+onstart:
+    if config.get("reference_checksums"):
+        logger.info("Ensuring reference md5s match manifest:")
+        result = subprocess.run(
+            ["md5sum", "--check", config["reference_checksums"]],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+        )
+        failed = [l for l in result.stdout.splitlines() if not l.endswith("OK")]
+        if failed:
+            for line in failed:
+                logger.error(line)
+            raise SystemExit("Reference checksum validation failed. Aborting.")
+        logger.info("All reference MD5s match")
+        logger.info("")
+
+#----- read in sample data
+samples_df = pd.read_csv(config["sample_csv"]).set_index("sample_id", drop=False)
 sample_list = list(samples_df['sample_id'])
 
-#####~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# define rules
-#####~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# RULE ALL INPUTS
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+#----- Include additional rules
+include: "additional_rules/genome_alignment/genome_aln.smk"
+include: "additional_rules/QC/qc.smk"
+if USE_SPIKEINS:
+    include: "additional_rules/spike_ins/spikein.smk"
+if USE_UMITOOLS:
+    include: "additional_rules/umitools/umi_extract.smk"
+
+#----- Build main pipeline input list
+all_inputs = []
+
+#----- Trimming
+all_inputs += expand("trimming/{sample}.R1.trim.fastq.gz", sample=sample_list)
+
+#----- QC
+all_inputs += ["fastQC/fastqc_multiqc_config.yaml"]
+all_inputs += expand("fastQC/{sample}.R1.trim_fastqc.html", sample=sample_list)
+all_inputs += expand("fastQC/{sample}.R1.trim_fastqc.zip", sample=sample_list)
+
+#----- UMI deduplication outputs (optional)
+if USE_UMITOOLS:
+    all_inputs += expand("umi_reads/{sample}.umi.fastq.gz", sample=sample_list)
+
+#----- Seqcluster collapsed reads
+all_inputs += expand("collapsed/{sample}.seqcluster.fastq.gz", sample=sample_list)
+all_inputs += expand("collapsed/{sample}.seqcluster.hairpin.aln.srt.bam", sample=sample_list)
+all_inputs += expand("collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.idxstats", sample=sample_list)
+all_inputs += expand("collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.flagstat", sample=sample_list)
+
+#----- miRBase alignment and metrics (always included)
+all_inputs += expand("mirbase_alignment/{sample}.mature.srt.bam", sample=sample_list)
+if USE_UMITOOLS:
+    all_inputs += expand("mirbase_alignment/{sample}.mature.srt.dedup.bam", sample=sample_list)
+all_inputs += expand("mirbase_alignment/{sample}.mature.unalign.fastq", sample=sample_list)
+all_inputs += expand("mirbase_alignment/{sample}.mature.srt.bam.idxstats", sample=sample_list)
+all_inputs += expand("mirbase_alignment/{sample}.mature.srt.bam.flagstat", sample=sample_list)
+all_inputs += ["miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv"]
+
+#----- mirtop outputs
+all_inputs += expand("mirtop/{sample}.hairpin.gff", sample=sample_list)
+all_inputs += expand("mirtop/temp/{sample}.hairpin_long.csv", sample=sample_list)
+all_inputs += ["mirtop/mirtop_stats.log"]
+
+#----- Genome alignment and featureCounts (always included)
+all_inputs += expand("genome_alignment/{sample}.genome.srt.filt.bam", sample=sample_list)
+all_inputs += expand("genome_alignment/{sample}.genome.srt.filt.bam.idxstats", sample=sample_list)
+all_inputs += expand("genome_alignment/{sample}.genome.srt.filt.bam.flagstat", sample=sample_list)
+
+if USE_UMITOOLS:
+    all_inputs += expand("genome_alignment/{sample}.genome.srt.filt.dedup.bam", sample=sample_list)
+all_inputs += [
+    "genome_counts/featurecounts.tsv",
+    "genome_counts/featurecounts.readcounts.tsv",
+    "genome_counts/featurecounts.readcounts.biotype.tsv",
+    "metrics/mirna_genome_alignment_metrics.tsv",
+    "metrics/mirna_genome_alignment_metrics.xlsx"]
+
+#----- PCA
+all_inputs += [
+    "plots/PCA_top_PC1_vs_PC2.png",
+    "plots/PCA_top_PCA_variance_bar.png"]
+
+#----- Spike-in outputs (optional)
+if USE_SPIKEINS:
+    all_inputs += expand("spikein_alignment/{sample}.unmapped.bowtie.fastq.gz", sample=sample_list)
+    all_inputs += [
+        "spikein_counts/spikein.readcounts.tsv",
+        "spikein_metrics/normalized_scalefactor_canon_and_isomir_counts.tsv"]
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# PIPELINE
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#----- Main pipieline execution
 rule all:
     input:
-        expand("trimming/{sample}.R1.trim.fastq.gz", sample=sample_list),
-        expand("trimming/{sample}.cutadapt.report", sample=sample_list),    
-        expand("umi_reads/{sample}.umi.fastq.gz", sample=sample_list),
-        expand("mirbase_alignment/{sample}.srt.bam", sample=sample_list),
-        expand("mirbase_alignment/{sample}.srt.dedup.bam", sample=sample_list),
-        expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
-        expand("genome_alignment/{sample}.srt.dedup.bam", sample=sample_list),
-        expand("genome_alignment/{sample}.srt.dedup.filt.bam", sample=sample_list),
-        "metrics/mirna_genome_alignment_metrics.tsv",
-        "genome_counts/featurecounts.readcounts.ann.tsv",
-        "genome_counts/featurecounts.readcounts_tpm.tsv",
-        "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
-        "mirbase_counts/mirbase.readcounts.tsv",
-        "mirbase_counts/mirbase.readcounts_tpm.tsv",
-        "plots/PCA_Variance_Bar_Plot.png",
-        expand("mirbase_alignment/{sample}.srt.dedup.bam.idxstats", sample=sample_list),
-        expand("mirbase_alignment/{sample}.srt.dedup.bam.flagstat", sample=sample_list)
-                
+        all_inputs
+    output:
+        "multiqc_report.html",
     conda:
         "env_config/multiqc.yaml",
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/multiqc:2.0"
+    resources: cpus="10", maxtime="2:00:00", mem_mb=61440,
     params:
         multiqc=config["multiqc_path"],
-
-    output:
-        "multiqc_report.html"
-
+        use_umi = USE_UMITOOLS
     shell: """
-        {params.multiqc}  genome_alignment  mirbase_alignment  genome_counts mirbase_counts  umi_reads
+
+        #----- Run multiqc
+        if [ "{params.use_umi}" = "true" ]; then
+            multiqc -v --force \
+                -n multiqc_report.html \
+                -c multiqc_config.yaml \
+                alignment_logs/mirbase_mature_padded \
+                alignment_logs/genome_alignment \
+                collapsed \
+                genome_alignment \
+                genome_counts \
+                mitop \
+                umi_reads
+        else
+            multiqc -v --force \
+                -c multiqc_config.yaml \
+                -n multiqc_report.html \
+                fastQC \
+                alignment_logs/seqcluster \
+                alignment_logs/genome_alignment \
+                alignment_logs/mirbase_mature_padded \
+                collapsed \
+                genome_alignment \
+                genome_counts \
+                mirtop \
+                metrics
+        fi
+
+        #----- Clean
+        if [ -d "mirtop/log" ]; then
+            rm -r mirtop/log
+        fi
+
+        if [ -d "collapsed/log" ]; then
+            rm -r collapsed/log
+        fi
+
 """
 
-
+#----- Rule to execute trimming
 rule trimming:
+    """
+    Read trimming
+    """
     output: 
         "trimming/{sample}.R1.trim.fastq.gz",
-        "trimming/{sample}.cutadapt.report"
     params:
         sample = lambda wildcards:  wildcards.sample,
         fastq_file_1 = lambda wildcards: samples_df.loc[wildcards.sample, "fastq_1"],
+        adapter_3prime = config["adapter_3prime"],
+        nextseq_trim = config["nextseq_trim"],
     conda:
         "env_config/cutadapt.yaml",
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/cutadapt:2.0"
+    resources: 
+        cpus="10", 
+        maxtime="2:00:00", 
+        mem_mb=61440,
+    message: "Trimming {wildcards.sample} reads with cutadapt."
     shell: """
+
+        #----- Make log directory
+        mkdir -p trimming/logs
+
+        #----- Run cutadapt
         cutadapt \
             -o trimming/{params.sample}.R1.trim.fastq.gz \
             {params.fastq_file_1} \
             -m 1 \
-            --nextseq-trim=30 \
+            {params.nextseq_trim} \
             -j {resources.cpus} \
             -q 30 \
             --max-n 0.8 \
-            --trim-n > trimming/{params.sample}.cutadapt.report
+            -a {params.adapter_3prime} \
+            --trim-n > trimming/logs/{params.sample}.cutadapt.log
     """
 
-rule umitools:
-    input: 
-        "trimming/{sample}.R1.trim.fastq.gz",
+#----- Function selecting input FASTQ file for alignment
+def get_alignment_input(wildcards):
+    if USE_UMITOOLS:
+        return f"umi_reads/{wildcards.sample}.umi.fastq.gz"
+    return f"trimming/{wildcards.sample}.R1.trim.fastq.gz"
+
+#----- Rule to collapse reads with seqcluster
+rule seqcluster:
+    """
+    Collapse reads
+    """
+    input: get_alignment_input
     output: 
-        "umi_reads/{sample}.umi.fastq.gz",
-        "umi_reads/{sample}.umi.log.txt",
+        collapsed = "collapsed/{sample}.seqcluster.fastq.gz"
     params:
-        sample = lambda wildcards:  wildcards.sample,
-        umitools_path = config["umitools_path"],
-        fastq_file_1 = lambda wildcards: samples_df.loc[wildcards.sample, "fastq_1"],
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
+        sample = lambda wildcards: wildcards.sample,
+        seqcluster_path = config["seqcluster_path"]
+    conda: "env_config/seqcluster.yaml"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/seqcluster:2.0"
+    threads: 8
+    resources:
+        maxtime="2:00:00",
+        mem_mb=61440
+    message: "Collapsing {wildcards.sample} reads with Seqcluster."
+    log: "collapsed/logs/{sample}.seqcluster.log"
     shell: """
-        {params.umitools_path} extract \
-            --extract-method=regex \
-            --bc-pattern='.+(?P<discard_1>AACTGTAGGCACCATCAAT){{s<=2}}(?P<umi_1>.{{12}})(?P<discard_2>.+)' \
-            -I {input} \
-            -S umi_reads/{params.sample}.umi.fastq.gz \
-            -L umi_reads/{params.sample}.umi.log.txt
-"""
+    
+        #----- Make log subdirectory
+        mkdir -p collapsed/logs
 
-
-rule mirbase_alignment:
-    input: 
-        "umi_reads/{sample}.umi.fastq.gz",
-    output:
-        "mirbase_alignment/{sample}.srt.bam",
-        "mirbase_alignment/{sample}.unalign.fastq",
-    params:
-        sample = lambda wildcards:  wildcards.sample,
-        bowtie_path = config["bowtie_path"],
-        bowtie_index = config["bowtie_index"],
-        samtools_path = config["samtools_path"],
-
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
-    shell: """
-        {params.bowtie_path} \
-            -x {params.bowtie_index} \
-            -U {input} -p 12 \
-            --norc \
-            -D 20 -R 3 -N 1 -L 12 -i S,1,0.50 \
-            --un mirbase_alignment/{params.sample}.unalign.fastq \
-            -S mirbase_alignment/{params.sample}.aln.sam 2>mirbase_alignment/{params.sample}_mirbase.log.txt
-
-        # subset reads for aligned length > 16 & < 28bp & any reads with gaps (XO/XG tags)
-        {params.samtools_path} view -h mirbase_alignment/{params.sample}.aln.sam | \
-            awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ((length($10) > 16 && length($10) <= 28) && ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/)) {{print $0}}' | \
-            samtools view -Sb - > mirbase_alignment/{params.sample}.bam
-        # filter for any reads with MAPQ <=1
-        {params.samtools_path} view -h -q 2 mirbase_alignment/{params.sample}.bam > mirbase_alignment/{params.sample}.sub.bam
-        # filter for any reads with > 2 mismatches 
-        {params.samtools_path} view -h mirbase_alignment/{params.sample}.sub.bam | \
-            awk 'BEGIN {{OFS="\t"}} /^@/ || ($0 ~ /NM:i:[0-2]($|\t)/)' | \
-            samtools view -b > mirbase_alignment/{params.sample}.sub2.bam
+        #----- Run seqcluster to collapse reads
+        seqcluster \
+            collapse \
+            -m 1 \
+            --min_size 15 \
+            -f {input} \
+            -o collapsed > {log} 
         
-        # sort and index BAM file 
-        {params.samtools_path} sort -@ 4 mirbase_alignment/{params.sample}.sub2.bam > mirbase_alignment/{params.sample}.srt.bam
-        {params.samtools_path} index mirbase_alignment/{params.sample}.srt.bam
+        #----- Clean
+        mv collapsed/{params.sample}.R1.trim_trimmed.fastq collapsed/{params.sample}.seqcluster.fastq
+        gzip collapsed/{params.sample}.seqcluster.fastq
+    
+    """
 
-        # remove intermediate bam files 
-        rm -rf mirbase_alignment/{params.sample}.bam
-        rm -rf mirbase_alignment/{params.sample}.sub.bam
-        rm -rf mirbase_alignment/{params.sample}.sub2.bam 
-"""
-
-
-rule mirbase_dedup:
-    input: 
-        "mirbase_alignment/{sample}.srt.bam",
-    output:
-        "mirbase_alignment/{sample}.srt.dedup.bam",
-    params:
-        sample = lambda wildcards:  wildcards.sample,
-        bowtie_path = config["bowtie_path"],
-        bowtie_index = config["bowtie_index"],
-        umitools_path = config["umitools_path"],
-        samtools_path = config["samtools_path"],
-
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
-    shell: """
-    {params.umitools_path} dedup --method=unique -I mirbase_alignment/{params.sample}.srt.bam -S mirbase_alignment/{params.sample}.srt.dedup.bam
-    {params.samtools_path} index mirbase_alignment/{params.sample}.srt.dedup.bam
-        
-"""
-
-rule mirbase_stats:
-    input: 
-        "mirbase_alignment/{sample}.srt.bam",
-        "mirbase_alignment/{sample}.srt.dedup.bam",
-    output:
-        "mirbase_alignment/{sample}.srt.dedup.bam.idxstats",
-        "mirbase_alignment/{sample}.srt.dedup.bam.flagstat"
-    params:
-        sample = lambda wildcards:  wildcards.sample,
-        bowtie_path = config["bowtie_path"],
-        bowtie_index = config["bowtie_index"],
-        samtools_path = config["samtools_path"],
-
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
-    shell: """
-    {params.samtools_path} idxstats mirbase_alignment/{params.sample}.srt.dedup.bam > mirbase_alignment/{params.sample}.srt.dedup.bam.idxstats
-    {params.samtools_path} flagstat mirbase_alignment/{params.sample}.srt.dedup.bam > mirbase_alignment/{params.sample}.srt.dedup.bam.flagstat
-        
-"""
-
-
-rule mirbase_count:
+#----- Rule to align collapsed reads to hairpins
+rule collapsed_hairpin_aln:
+    """
+    Align collapsed reads to hairpin sequences
+    """
     input:
-        expand("mirbase_alignment/{sample}.srt.dedup.bam.idxstats", sample=sample_list),
-
+        seqcluster_fastq = "collapsed/{sample}.seqcluster.fastq.gz"
     output:
-        "mirbase_counts/mirbase.readcounts.tsv",
-        "mirbase_counts/mirbase.readcounts_tpm.tsv",
-    params:
-
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
-    shell: """
-    echo -ne mirbase_ID"\t"Length"\t" > mirbase_counts/mirbase.readcounts.tsv
-    echo {input} | tr " " "\t"| sed s/"mirbase_alignment\/"//g| sed s/".srt.dedup.bam.idxstats"//g >> mirbase_counts/mirbase.readcounts.tsv
-    paste {input}| awk -f scripts/mirbase_counts.awk >> mirbase_counts/mirbase.readcounts.tsv
-
-    # run TPM normalization 
-    python scripts/mirbase-readcnt_to_tpm.py mirbase_counts/mirbase.readcounts.tsv
-"""    
-
-rule genome_alignment:
-    input: 
-        "mirbase_alignment/{sample}.unalign.fastq",
-    output:
-        "genome_alignment/{sample}.srt.bam",
+        collapsed_aln = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam"
     params:
         sample = lambda wildcards:  wildcards.sample,
-        bowtie_path = config["bowtie_path"],
-        bowtie_genome_index = config["bowtie_genome_index"],
-        samtools_path = config["samtools_path"],
+        bowtie1_path = config["bowtie1_path"],
+        hairpin_index = config["bowtie1_hairpin_index"],
+        samtools_path = config["samtools_path"]
+    conda: "env_config/bowtie1.yaml"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/bowtie1:2.0"
+    threads: 8
+    resources:
+        maxtime="2:00:00",
+        mem_mb=61440
+    message: "Aligning {wildcards.sample} collapsed reads to hairpin index with Bowtie1."
+    log: "alignment_logs/seqcluster/{sample}.bowtie1.hairpin.aln.log"
+    shell: """
     
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
+        #----- Make logs subdirectory
+        mkdir -p alignment_logs/seqcluster
 
-    shell: """
-        {params.bowtie_path} \
-            -x {params.bowtie_genome_index} \
-            -U {input} -p 12 \
-            --very-sensitive-local \
-            --un genome_alignment/{params.sample}.unalign.fastq \
-            -S genome_alignment/{params.sample}.aln.sam 2>genome_alignment/{params.sample}_genome.log.txt
-        # sort and index 
-        {params.samtools_path} view -Sb genome_alignment/{params.sample}.aln.sam | \
-            {params.samtools_path} sort -@ 4 - > genome_alignment/{params.sample}.srt.bam
-        {params.samtools_path} index genome_alignment/{params.sample}.srt.bam
-        
-"""
+        #----- Align collapsed reads to hairpins
+        bowtie \
+            --threads {threads} \
+            --sam \
+            -x {params.hairpin_index} \
+            -q \
+            --un collapsed/{params.sample}.unmapped.fastq \
+            -t \
+            -k 50 \
+            --best \
+            --strata \
+            -e 99999 \
+            --chunkmbs 2048 \
+            {input.seqcluster_fastq} \
+            2>| >(tee {log} >&2) \
+            | samtools view -@ 24 -bS - \
+            | samtools sort -@ 24 -o {output.collapsed_aln}
 
-
-rule genome_dedup:
-    input: 
-        "genome_alignment/{sample}.srt.bam",
-    output:
-        "genome_alignment/{sample}.srt.dedup.bam",
-        "genome_alignment/{sample}.srt.dedup.filt.bam",
-
-    params:
-        sample = lambda wildcards:  wildcards.sample,
-        bowtie_path = config["bowtie_path"],
-        bowtie_index = config["bowtie_index"],
-        umitools_path = config["umitools_path"],
-        samtools_path = config["samtools_path"],
+        samtools index {output.collapsed_aln}
     
-    resources: cpus="10", maxtime="2:00:00", mem_mb="60gb",
-
-    shell: """
-    {params.umitools_path} dedup --method=unique -I genome_alignment/{params.sample}.srt.bam -S genome_alignment/{params.sample}.srt.dedup.bam
-    # filter by length and gap presence 
-    {params.samtools_path} view -h genome_alignment/{params.sample}.srt.dedup.bam | \
-        awk 'BEGIN {{OFS="\t"}} $1 ~ /^@/ || ((length($10) > 16 && length($10) <= 28) && ($0 !~ /XG:i:[^0]/ && $0 !~ /XO:i:[^0]/)) {{print $0}}' | \
-        {params.samtools_path} view -Sb -> genome_alignment/{params.sample}.srt.dedup.filt.bam
-    {params.samtools_path} index genome_alignment/{params.sample}.srt.dedup.filt.bam
-"""
-
-
-rule genome_counts:
-    input:  
-        expand("genome_alignment/{sample}.srt.dedup.filt.bam", sample=sample_list),
-
-    output: 
-        "genome_counts/featurecounts.readcounts.ann.tsv",
-        "genome_counts/featurecounts.readcounts_tpm.tsv",
-        "genome_counts/featurecounts.readcounts_tpm.ann.tsv",
-
-    params:
-        featurecounts = config['featurecounts_path'],
-        layout = config["layout"],
-        pair_flag = "-p" if config["layout"]=="paired" else "",
-        strand = config['featurecounts_strand'],
-        gtf = config['annotation_gtf'],
-        fc_ann_script = config['featurecounts_annscript'],
-    conda:
-        "env_config/featurecounts.yaml",
-
-    resources: cpus="10", maxtime="8:00:00", mem_mb="100gb",
-
-    shell: """
-        {params.featurecounts} -T 32 {params.pair_flag} -s {params.strand}  -a {params.gtf} -o genome_counts/featurecounts.readcounts.raw.tsv {input}
-        sed s/"genome_alignment\/"//g genome_counts/featurecounts.readcounts.raw.tsv| sed s/".srt.bam"//g| tail -n +2 > genome_counts/featurecounts.readcounts.tsv
-        python readcnt_to_rpkmtpm.py genome_counts/featurecounts.readcounts.tsv {params.layout}
-        python {params.fc_ann_script} {params.gtf} genome_counts/featurecounts.readcounts.tsv > genome_counts/featurecounts.readcounts.ann.tsv
-        python {params.fc_ann_script} {params.gtf} genome_counts/featurecounts.readcounts_tpm.tsv > genome_counts/featurecounts.readcounts_tpm.ann.tsv
-"""
-
-rule alignment_metrics_counts:
-    input:  
-        expand("genome_alignment/{sample}.srt.bam", sample=sample_list),
-
-    output: 
-        "metrics/mirna_genome_alignment_metrics.tsv",
-        "metrics/mirna_genome_alignment_metrics.xlsx",
-
-    params:
-        gtf = config['annotation_gtf'],
-    conda:
-        "env_config/featurecounts.yaml",
-
-    resources: cpus="1", maxtime="8:00:00", mem_mb="2gb",
-
-    shell: """
-        mkdir -p metrics
-        python scripts/qc_metrics.py umi_reads mirbase_alignment genome_alignment > metrics/mirna_genome_alignment_metrics.tsv
-        python scripts/qc_metrics_xlsx.py metrics/mirna_genome_alignment_metrics.tsv metrics/mirna_genome_alignment_metrics.xlsx
-"""
-
-rule pca_plots:
-    input: "mirbase_counts/mirbase.readcounts.tsv",
-
-    output:
-        #"plots/Heatmap_scaled_"+str(num_genes_compared)+"_features.png",
-        # there potentially could be more, but this plot must exist. Make sure -p flag has number at least 2 if specified
-        "plots/PCA_1_vs_2.png",
-        "plots/PCA_Variance_Bar_Plot.png",
-        "plots/Gene_Variance_Plot.png",
-
-    params:
-        num_genes = 500,
-        pca_plot_script = config['pca_plot_script'],
-        
-    conda:
-        # uses a subset of the packages that featurecounts does
-        "env_config/pcaplot.yaml",
-
-    resources: cpus="1", maxtime="1:00:00", mem_mb="2gb",
-
-    shell: """
-        python {params.pca_plot_script} \
-        mirbase_counts/mirbase.readcounts.tsv \
-        plots \
-        --genes_considered {params.num_genes} 
-#        --color_file sample_ref/sample_colors_hex.tsv
     """
+
+
+
+#----- Rule to get hairpin stats
+rule hairpin_stats:
+    """
+    Collate stats for hairpin alignments
+    """
+    input: 
+        hairpinStats = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam"
+    output:
+        hp_idx = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.idxstats",
+        hp_flagstat = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam.flagstat",
+    params:
+        sample = lambda wildcards:  wildcards.sample,
+        samtools_path = config["samtools_path"],
+    conda: "env_config/bowtie1.yaml"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/bowtie1:2.0"
+    resources:
+        cpus="10",
+        maxtime="2:00:00",
+        mem_mb=61440,
+    message: "Collating {wildcards.sample} mirbase stats with Samtools"
+    shell: """
+    samtools idxstats {input.hairpinStats} > {output.hp_idx}
+    samtools flagstat {input.hairpinStats} > {output.hp_flagstat}
+"""
+
+#----- Rule to run miRtop
+rule miRtop:
+    """
+    Running mirtop for isomiR calculation
+    """
+    input:
+        collapsed_aln = "collapsed/{sample}.seqcluster.hairpin.aln.srt.bam"
+    output:
+        mirtop_gff = "mirtop/{sample}.hairpin.gff",
+        hairpin_tsv = "mirtop/{sample}.hairpin.tsv"
+    conda: "env_config/mirtop.yaml"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/mirtop:2.0"
+    params:
+        sample = lambda wildcards:  wildcards.sample,
+        hairpin_fa = config["hairpin_fa"],
+        hairpin_gff = config["hairpin_gff"],
+        sps = config["sps"]
+    resources:
+        cpus="10", 
+        maxtime="2:00:00", 
+        mem_mb=61440,
+    message: "Getting {wildcards.sample} isomiRs with miRtop."
+    log: 
+        gffLog = "mirtop/logs/{sample}.mirtop.gff.log",
+        countLog = "mirtop/logs/{sample}.mirtop.counts.log",
+        statLog = "mirtop/logs/{sample}.mirtop.stats.log"
+    shell: """
+
+        #----- Make logs subdirectory
+        mkdir -p mirtop/logs
+
+        #----- Run miRtop GFF
+        mirtop gff \
+            --add-extra \
+            --sps {params.sps} \
+            --hairpin {params.hairpin_fa} \
+            --gtf {params.hairpin_gff} \
+            -o mirtop \
+            {input.collapsed_aln} > {log.gffLog} 2>&1 &&
+        mv mirtop/{params.sample}.seqcluster.hairpin.aln.srt.gff mirtop/{params.sample}.hairpin.gff
+        
+        #----- Run miRtop counts
+        mirtop counts \
+            -o mirtop \
+            --hairpin {params.hairpin_fa} \
+            --gff {output.mirtop_gff} \
+            --gtf {params.hairpin_gff} > {log.countLog} 2>&1
+
+"""
+
+#----- Rule to run mirtop stats
+rule mirtop_stats:
+    """
+    Run mirtop stats
+    """
+    input:
+        expand("mirtop/{sample}.hairpin.gff", sample=sample_list)
+    output:
+        "mirtop/mirtop_stats.log"
+    conda: "env_config/mirtop.yaml"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/mirtop:2.0"
+    resources:
+        cpus="10", 
+        maxtime="2:00:00", 
+        mem_mb=61440,
+    message: "Getting mirtop stats"
+    shell: """
+
+        #----- Run mirtop stats
+        mirtop stats \
+            {input} \
+            -o mirtop
+    
+    """
+
+#----- Rule to pivot isomiRs longer
+rule pivot_isomirs_longer:
+    """
+    Pivot isomiRs longer
+    """
+    input:
+        isomiR_counts = "mirtop/{sample}.hairpin.tsv"
+    output:
+        isomiR_long = "mirtop/temp/{sample}.hairpin_long.csv"
+    conda: "env_config/r_env.yaml"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/r_env:2.0"
+    params:
+        sample = lambda wildcards:  wildcards.sample,
+    resources:
+        cpus="10", 
+        maxtime="2:00:00", 
+        mem_mb=61440,
+    message: "Pivottings {wildcards.sample} isomiR data to long format."
+    shell: """
+
+        #----- Pivot longer
+        Rscript scripts/pivot_longer.R \
+            {input} \
+            {output}
+    
+    """
+
+#----- Rule to collate master isomiR table, remove canonical miRNA counts from isomiR table
+rule collate_isomir_table:
+    """
+    Combine isomiR results into master table
+    """
+    input:
+        expand("mirtop/temp/{sample}.hairpin_long.csv", sample=sample_list)
+    output:
+        "miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv"
+    conda: "env_config/r_env.yaml"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/r_env:2.0"
+    resources:
+        cpus="10", 
+        maxtime="2:00:00", 
+        mem_mb=61440,
+    message: "Collating isomir counts across samples."
+    shell: """
+    
+    #----- Collate all counts files
+    awk 'NR == 1 || FNR > 1' \
+        {input} > "mirtop/temp/master_counts_long.csv"
+
+    #----- Create master counts file with formatting
+    Rscript scripts/pivot_wider.R \
+        mirtop/temp/master_counts_long.csv \
+        miRNA_Quant/
+    
+    
+    """
+
+#----- Rule to run PCA
+rule pca_plots:
+    """
+    Run PCA on the isomir data
+    """
+    input: 
+        "miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv",
+    output:
+        "plots/PCA_top_PC1_vs_PC2.png",
+        "plots/PCA_top_PCA_variance_bar.png",
+    conda:
+        "env_config/pcaplot.yaml", 
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/pcaplot:2.0"
+    resources: cpus="1", maxtime="1:00:00", mem_mb=2000,
+    message: "Running PCA"
+    shell: """
+
+        #----- Create directory
+        mkdir -p plots
+
+        #----- Run PCA script
+        python scripts/pca_plotting.py \
+            {input} \
+            plots
+    """
+
+
+
 
 

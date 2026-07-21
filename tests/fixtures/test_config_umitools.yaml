@@ -1,0 +1,43 @@
+#-------------------------------------------#
+# Test configuration — UMI tools enabled
+# Used by: dry-run tests only
+#-------------------------------------------#
+
+sample_csv: "tests/fixtures/sample_fastq_list.csv"
+layout: "single"
+use_spikeins: false
+use_umitools: true
+adapter_3prime: "AGATCGGAAGAGCACACGTCTGAACTCCAGTCA"
+nextseq_trim: ""
+
+seqcluster_path: "seqcluster"
+bowtie1_path: "bowtie"
+bowtie2_path: "bowtie2"
+samtools_path: "samtools"
+fastqc_path: "fastqc"
+featurecounts_path: "featureCounts"
+multiqc_path: "multiqc"
+python_mirna_venv: "python3"
+
+# UMI tools settings
+umitools_path: "umi_tools"
+bowtie1_index: "tests/fixtures/refs/mature_subset"
+bowtie_path: "bowtie"
+bowtie_index: "tests/fixtures/refs/mature_subset"
+
+bowtie1_hairpin_index: "tests/fixtures/refs/hairpin_subset"
+bowtie1_mature_index: "tests/fixtures/refs/mature_subset"
+padded_mature_index: "refs/mirbase_mature"
+bowtie2_genome_index: "tests/fixtures/refs/tiny_genome"
+annotation_gtf: "tests/fixtures/refs/tiny.gtf"
+hairpin_gff: "tests/fixtures/refs/hairpin_subset.gff3"
+hairpin_fa: "tests/fixtures/refs/hairpin_subset.fa"
+sps: "dre"
+
+sample_with_spikein_finalvolume: 5
+bowtie_spikein_index: "tests/fixtures/refs/spikeins_stub"
+spikein_reference_core: "tests/fixtures/refs/spikeins_stub.fa"
+
+pca_plot_script: "scripts/pca_plotting.py"
+featurecounts_annscript: "scripts/add_gene_to_ensg.py"
+featurecounts_strand: "0"

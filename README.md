@@ -1,48 +1,119 @@
-# Dartmouth CQB miRNA-seq analysis pipeline
-Pipeline for processing and quality control of miRNA-seq data
+# Dartmouth GDSC miRNA-Seq Pipeline
+<img src="img/cqb_logo.jpg" alt="CQB Logo" width="200" align="right"/>
 
-## Introduction 
-This pipeline provides preprocessing and quality control of miRNA sequencing data.  Currently, only miRNA seq runs created with Qiagen chemistry, including UMIs, are supported.  The pipeline has been built and tested using human and mouse data sets. Required software can be installed using Conda with the enrionment file (environment.yml), or specified as paths in the config.yaml file.
+![Version](https://img.shields.io/badge/version-2.0-blue)
 
-## Pipeline summary:
-The major steps implmented in the pipeline include: 
+The GDSC miRNA-Seq pipeline provides preprocessing and quantification of microRNA sequencing data with robust quality control and data visualization, implemented through [Snakemake](https://snakemake.readthedocs.io/en/stable/) for use on the [Dartmouth Discovery HPC](https://rc.dartmouth.edu/discoveryhpc/). The pipeline supports quantification of both canonical mature miRNAs and isomiRs (miRNA sequence variants) via [miRBase](https://www.mirbase.org), and is compatible with human (hg38), mouse (mm10), and zebrafish (GRCz11) across non-UMI Qiagen libraries and UMI-containing NEB Small RNA chemistries.
 
-- Trimming of adapters and caputuring of UMIs using [*UMI-tools*](https://github.com/CGATOxford/UMI-tools)
-- Alignment to mirBase using [*bowtie2*](https://github.com/BenLangmead/bowtie2)
-- Alignment of remaining unmapped reads to the whole genome using  [*bowtie2*](https://github.com/BenLangmead/bowtie2)
-- Quantification of mirBase miRNAs and other genomic RNAs with [*Samtools*](http://www.htslib.org/) and [*Featurecounts*](http://subread.sourceforge.net/)
+## Documentation
 
-All of these tools can be installed in a [conda environment](https://docs.conda.io/en/latest/) or on paths available to a computing server. As input, the pipeline takes raw data in FASTQ format, and produces quantified read counts as well as a quality control report quantifying reads with the correct UMI structure, reads mapping to mirBase, and reads mapping to the genome.
+- [Summary](#summary)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Optional Features](#optional-features)
+- [Reference Integrity](#reference-integrity)
+- [Parameters](prebuilt_configs/params.md)
+- [Understanding the Outputs](understanding_outputs.md)
+- [Contact](#contact)
 
-## Implementation
-The pipeline uses Snakemake to submit jobs to the scheduler, or spawn processes on a single machine, and requires several variables to be configured by the user when running the pipeline: 
-* **sample_tsv** - A TSV file containing sample names and paths to fastq paths.  See example in this repository for formatting.
+## Summary
 
-* **bowtie_index** - Path to mirBase genome reference index  
-* **bowtie_genome_index** - Path to bowtie2 genome reference index  
+The pipeline supports the use of Conda environments for all software dependencies (`job.script.conda.sh`) as well as singularity containers hosted by Github Container Repository (`job.script.sh`).
 
-* **annotation_gtf** - Absolute path to genome annotation file (.gtf) of [*Featurecouts*](http://subread.sourceforge.net/) or [*RSEM*](https://deweylab.github.io/RSEM/)
-* **featurecounts_strand** - "1" or "2" #1 for first read transcription strand, 2 for second, 0 for unstranded.*  
+To run this pipeline:
+1. Populate [`sample_fastq_list.csv`](sample_fastq_list.csv) with your sample information
+2. Set the `CONFIG` variable in [`job.script.sh`](job.script.sh) to your organism
+3. Adjust any parameters in [`prebuilt_configs/`](prebuilt_configs/) if needed (see [Parameters](prebuilt_configs/params.md))
+4. Submit [`job.script.sh`](job.script.sh) to the SLURM scheduler
 
-## Running tests using pre-built environments on Discovery
-Clone this repository:
+Currently the pipeline performs the following:
+
+- Adapter trimming with [Cutadapt](https://cutadapt.readthedocs.io/en/stable/)
+- Collapsing of trimmed reads to miRNA loci using [seqcluster](https://github.com/lpantano/seqcluster)
+- Alignment of collapsed reads to miRBase hairpin sequences using [Bowtie1](https://github.com/BenLangmead/bowtie)
+- IsomiR quantification (canonical miRNAs + isomiRs) using [miRTop](https://github.com/miRTop/mirtop)
+- Alignment of trimmed reads to padded mature miRBase sequences using [Bowtie2](https://github.com/BenLangmead/bowtie2)
+- Alignment of unaligned reads to the full genome using [Bowtie2](https://github.com/BenLangmead/bowtie2)
+- Quantification of genomic features and small RNA biotypes (tRNAs, snoRNAs, Mt-rRNA, Mt-tRNA, etc.) using [Samtools](http://www.htslib.org/) and [featureCounts](http://subread.sourceforge.net/)
+- Quality control and summary reporting using [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) and [MultiQC](https://multiqc.info/)
+- PCA and variance plots from isomiR count matrices using a custom Python script
+- **(optional)** UMI extraction and deduplication using [UMI-tools](https://github.com/CGATOxford/UMI-tools)
+- **(optional)** Spike-in alignment and normalization using [BBMap](https://github.com/BioInfoTools/BBMap) and [Bowtie](https://github.com/BenLangmead/bowtie)
+
+## Installation
+
+Clone the repository:
+
 ```shell
-git clone https://github.com/Dartmouth-Data-Analytics-Core/DAC-miRNAseq-pipeline.git
-cd DAC-miRNAseq-pipeline
+git clone https://github.com/Dartmouth-Data-Analytics-Core/GDSC-miRNAseq-analysis-pipeline
+cd GDSC-miRNAseq-analysis-pipeline
 ```
-Activate an environment containing Snakemake:
+
+## Configuration
+
+**1. Sample sheet**
+
+Populate [`sample_fastq_list.csv`](sample_fastq_list.csv) with your sample information. This is a comma-separated file with the following columns:
+
+| Column | Description |
+|--------|-------------|
+| `sample_id` | Short sample identifier used to name all output files |
+| `fastq_1` | Path to the R1 FASTQ file |
+
+**2. Job submission script**
+
+>[!IMPORTANT]
+> You must set the `CONFIG` variable in either [`job.script.sh`](job.script.sh) (if using singularity) or [`job.script.conda.sh`](job.script.conda.sh`) before submitting. Accepted values are `human`, `mouse`, or `zebrafish` (case-sensitive).
+
 ```shell
-conda activate /dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/sullivan/tools/snakemake/snakemake-7.18
+CONFIG="human"
 ```
 
-## More Command Line Examples
-Submit the pipeline to a single machine, allowing usage of 40 cores:
+Setting `CONFIG` automatically selects the correct prebuilt config file (`prebuilt_configs/${CONFIG}_config.yaml`). No other path changes are required when using a prebuilt config.
+
+For singularity and conda: a prefix for where to install environments can be set in the Snakemake call through either `singularity-prefix` or `conda-prefix` argument. For the former, GHCR-hosted container images will be pulled down into the specified location. For the latter, conda environments will be built in the specified location. This downloading/building only occurs once and then concurrent runs can point to that path for ready usage. 
+
+**3. Pipeline parameters**
+
+Each organism has a prebuilt config in [`prebuilt_configs/`](prebuilt_configs/). These files contain all tunable settings for trimming, alignment, and optional analyses. See [Parameters](prebuilt_configs/params.md) for a full description of every parameter. For an explanation of all output files, see [Understanding the Outputs](understanding_outputs.md).
+
+**4. Reference integrity**
+
+All reference files (miRBase indices, genome indices, annotation GTF/GFF) were built from [miRBase v22](https://www.mirbase.org/blog/2018/11/mirbase-22-released/). These references are intended to be static, but the pipeline includes an MD5 checksum check at startup to guard against unintended reference drift (e.g. accidental overwrites or storage corruption). Pre-computed checksums for each organism are stored in [`prebuilt_configs/ref_md5s/`](prebuilt_configs/ref_md5s/). **DO NOT EDIT THESE FILES BY HAND.**
+
+**5. Submitting the job**
+
 ```shell
-snakemake --use-conda -s Snakefile -j 40
+sbatch job.script.sh
 ```
 
-**Contact & questions:** 
-Please address questions to *DataAnalyticsCore@groups.dartmouth.edu* or submit an issue in the GitHub repository. 
+## Optional Features
 
-**This pipeline was created with funds from the COBRE grant **1P20GM130454**. 
-If you use the pipeline in your own work, please acknowledge the pipeline by citing the grant number in your manuscript.**
+### UMI-tools deduplication
+
+>[!IMPORTANT]
+> UMI support is designed for NEB Small RNA libraries containing a 12-base UMI. Set `use_umitools: true` in your config to enable UMI extraction and deduplication.
+
+```yaml
+use_umitools: true
+```
+
+When enabled, UMIs are extracted from raw reads prior to trimming using [UMI-tools](https://github.com/CGATOxford/UMI-tools), and PCR duplicates are removed after alignment. Deduplicated BAMs are used for all downstream quantification steps.
+
+### Spike-in normalization
+
+>[!IMPORTANT]
+> Spike-in support is designed for NextFLEX libraries. Set `use_spikeins: true` and configure `sample_with_spikein_finalvolume` in your config before running.
+
+```yaml
+use_spikeins: true
+sample_with_spikein_finalvolume: 8
+```
+
+When enabled, reads are first aligned to spike-in sequences using [BBMap](https://github.com/BioInfoTools/BBMap) and [Bowtie](https://github.com/BenLangmead/bowtie). Unmapped reads proceed through the standard pipeline. Spike-in counts are used to compute normalization scale factors applied to the final isomiR count matrices.
+
+## Contact
+
+**Contact and questions:** Please address questions to *DataAnalyticsCore@groups.dartmouth.edu* or submit an issue in the GitHub repository.
+
+**This pipeline was created with funds from the COBRE grant 1P20GM130454. If you use the pipeline in your own work, please acknowledge the pipeline by citing the grant number in your manuscript.**

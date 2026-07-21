@@ -1,41 +1,107 @@
-report_header_info:
-  - Contact E-mail:  DataAnalyticsCore@groups.dartmouth.edu
-  - Application Type: "miRNA-seq"
+# ============================================================================
+# CUSTOM BRANDING - Report Title, Subtitle, and Contact
+# ============================================================================
+
+# Main report title (appears at top of report)
+title: "GDSC-miRNA Pipeline v2.0"
+
+# Subtitle text (appears below title)
+subtitle: "Analysis of miRNAs and isomiRs"
+
+custom_logo: "img/cqb_logo.jpg"
+custom_logo_url: "https://sites.dartmouth.edu/cqb/files/2019/10/Logo-and-bringing-smaller-300.png"
+
+# Introductory text (appears at top of report, supports HTML/Markdown)
+intro_text: |
+  <p style="text-align: center; font-size: 1.1em;">
+    <em>Authors: Dartmouth Genomic Data Science Core</em><br>
+    For correspondence contact: <a href="mailto:gdsc@groups.dartmouth.edu">gdsc@groups.dartmouth.edu</a>
+  </p>
+max_table_rows: 1000
+filesearch_lines_limit: 2000000000
 
 extra_fn_clean_exts:
-  - ".srt"
-  - ".combined"
-  - ".aln.err"
-  - ".1M"
-  - ".mkdup"
-  - ".hisat"
-  - ".5k"
+  - ".bowtie1.hairpin.aln"
+  - ".seqcluster.hairpin.aln.srt"
+  - ".genome.srt.filt"
+  - ".R1"
+
+table_columns_name:
+  "Bowtie1 / Seqcluster":
+    reads_aligned_percentage: "% miRBase hairpin"
+  "miRbase Mature mapping (Padded Reference)":
+    overall_alignment_rate: "% miRBase mature"
+  "Genome alignment":
+    overall_alignment_rate: "% Genome"
+  
+
+#============================================================================
+# MAIN CONFIG
+#============================================================================
+export_plots: false
+disable_version_detection: true
+
+# Disable default top_modules behavior
+top_modules: []
+
+# Default to plot view instead of table
+table_columns_visible:
+  general_stats: true
+
+# Customize number formatting for General Statistics
+general_stats_columns:
+  - total_reads:
+      format: '{:,.0f}'  # Show full numbers with commas, no decimals
+  - mapped_reads:
+      format: '{:,.0f}'
+  - featureCounts:
+      Assigned:
+        format: '{:,.0f}'
 
 module_order:
-  - "fastqc"
-  - "star"
-  - "samtools"
-  - "picard"
-  - "featurecounts"
-  - "rsem"
+  - custom_content:  # Add this to control where your custom section appears
+      name: "Small RNA Biotype Statistics"
+  - bowtie1:
+      name: "Bowtie1 / Seqcluster"
+      info: "Alignment summary from Bowtie1 (Seqcluster)."
+      path_filters:
+        - "alignment_logs/seqcluster/*"
+  - mirtop:
+      name: "miRNA Quantification (mirtop)"
+      info: "Summary statistics from mirtop for miRNA quantification."
+      path_filters:
+        - "mirtop/mirtop_stats.log"
+  - samtools
+  - featureCounts
+  - bowtie2:
+      name: "miRbase Mature mapping (Padded Reference)"
+      info: "Alignment summary of reads to miRbase mature padded reference using Bowtie2."
+      path_filters:
+        - "alignment_logs/mirbase_mature_padded/*"
+  - bowtie2:
+      name: "Genome alignment"   
+      info: "Alignment summary of reads to genome using Bowtie2."
+      path_filters:
+        - "alignment_logs/genome_alignment_clean/*"   
+      anchor: "bowtie2_genome"
 
-report_section_order:
-    fastqc:
-        order: 1000
-    star:
-        order: 950
-    picard:
-        order: 900
-    Samtools:
-        order: 850
-    featurecounts:
-        order: 750
-        
-table_columns_visible:
-  featureCounts: False  
-  Samtools: False
+sp:
+  mirtop:
+    fn: "*mirtop_stats.log"
+  smrna_biotype:
+    fn: "*_mqc.tsv"
+    contents: "smrna_biotype"
 
-fn_ignore_files:
-  - "*.flagstat"
-  - "*.idxstats"
-
+# Custom content configuration (optional - only if you want to override defaults)
+# If you're using the _mqc.tsv file with embedded headers, you don't need this section
+# But you can use it to add additional customization
+custom_data:
+  smrna_biotype_metrics:
+    file_format: 'tsv'
+    section_name: 'Small RNA Biotype Statistics'
+    description: 'Distribution of small RNA reads across different gene biotypes. Toggle between table and violin plot views to compare distributions.'
+    plot_type: 'table'
+    pconfig:
+      id: 'smrna_biotype_table'
+      title: 'Small RNA Gene Biotype Counts and Percentages'
+      save_file: true
