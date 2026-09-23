@@ -1,4 +1,7 @@
 rule spikein_bbduk:
+    """
+    Generate spike in data
+    """
     input:
         "trimming/{sample}.R1.trim.fastq.gz"
     output:
@@ -6,10 +9,12 @@ rule spikein_bbduk:
         unmapped = "spikein_alignment/{sample}.unmapped.fastq.gz"
     params:
         spikein_ref = config["spikein_reference_core"]  
-    resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
+    resources: cpus="10", maxtime="4:00:00", mem_mb=61440,
     threads: 8
     conda:
         "../../env_config/bbmap.yaml"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/bbmap:2.0"
+    message: "Generating {wildcards.sample} spike-in data with bbmap."
     shell: """
         mkdir -p spikein_alignment
         
@@ -27,13 +32,18 @@ rule spikein_bbduk:
     """
 
 rule spikein_counts:
+    """
+    Get spike-in counts
+    """
     input:
         expand("spikein_alignment/{sample}.stats", sample=sample_list)
     output:
         "spikein_counts/spikein.readcounts.tsv"
     params:
         samples=lambda wildcards, input: [path.split("/")[-1].replace(".stats","") for path in input]
-    resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/bbduk:2.0"
+    resources: cpus="10", maxtime="4:00:00", mem_mb=61440,
+    message: "Generating spike-in counts."
     shell: """
         echo STATS: {input}
         echo SAMPLES: {params.samples}
@@ -46,16 +56,21 @@ rule spikein_counts:
 
 
 rule mappingBowtieSpikeIns:
+    """
+    Align spike-in data
+    """
     input:  
         "trimming/{sample}.R1.trim.fastq.gz"
     output: 
         map = "spikein_alignment/{sample}.map",
         unmapped = "spikein_alignment/{sample}.unmapped.bowtie.fastq.gz"
     threads: 12
-    resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
-    log:    "spikein_alignment/{sample}.log" 
+    resources: cpus="10", maxtime="4:00:00", mem_mb=61440,
+    log: "alignment_logs/spike-ins/{sample}.bowtie1.spikein.aln.log" 
     conda:
         "../../env_config/bowtie1.yaml"
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/bowtie1:2.0"
+    message: "Aligning {wildcards.sample} spike-in data with Bowtie"
     shell:
         """
         mkdir -p spikein_alignment
@@ -69,17 +84,22 @@ rule mappingBowtieSpikeIns:
 
 
 rule normalize_data_spikein:
+    """
+    Normalize spike-in data
+    """
     input:
         spikein = "spikein_counts/spikein.readcounts.tsv",
-        mirbase_counts = "mirbase_counts/mirbase.readcounts.tsv"
+        mirbase_counts = "miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv"
     output:
         "spikein_metrics/spikein_detection_metrics.tsv",
-        "spikein_metrics/normalized_scalefactor_mirbase_counts.tsv"
+        "spikein_metrics/normalized_scalefactor_canon_and_isomir_counts.tsv"
     conda:
         "../../env_config/r_env.yaml"
-    resources: cpus="10", maxtime="4:00:00", mem_mb="60gb",
+    container: "docker://ghcr.io/dartmouth-data-analytics-core/r_env:2.0"
+    resources: cpus="10", maxtime="4:00:00", mem_mb=61440,
     params:
         final_volume = config["sample_with_spikein_finalvolume"]
+    message: "Normalizing spike-in data"
     shell:
         """
         mkdir -p spikein_metrics

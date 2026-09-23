@@ -1,0 +1,28 @@
+##gff-version 3
+##date 2018-3-5
+#
+# Chromosomal coordinates of Danio rerio microRNAs
+# microRNAs:               miRBase v22
+# genome-build-id:         GRCz11
+# genome-build-accession:  NCBI_Assembly:GCA_000002035.4
+#
+# Hairpin precursor sequences have type "miRNA_primary_transcript". 
+# Note, these sequences do not represent the full primary transcript, 
+# rather a predicted stem-loop portion that includes the precursor 
+# miRNA. Mature sequences have type "miRNA".
+#
+dre-mir-21	miRBase	miRNA_primary_transcript	1	96	.	+	.	ID=MI0001530;Alias=MI0001530;Name=dre-mir-21
+dre-mir-21	miRBase	miRNA	21	43	.	+	.	ID=MIMAT0001787;Alias=MIMAT0001787;Name=dre-miR-21;Derives_from=MI0001530
+dre-mir-21	miRBase	miRNA	54	76	.	-	.	ID=MIMAT0003123;Alias=MIMAT0003123;Name=dre-miR-21-3p;Derives_from=MI0001530
+dre-let-7a	miRBase	miRNA_primary_transcript	1	94	.	+	.	ID=MI0001759;Alias=MI0001759;Name=dre-let-7a
+dre-let-7a	miRBase	miRNA	21	42	.	+	.	ID=MIMAT0001759;Alias=MIMAT0001759;Name=dre-let-7a;Derives_from=MI0001759
+dre-let-7a	miRBase	miRNA	53	74	.	-	.	ID=MIMAT0099001;Alias=MIMAT0099001;Name=dre-let-7a-3p;Derives_from=MI0001759
+dre-mir-26a	miRBase	miRNA_primary_transcript	1	94	.	+	.	ID=MI0001794;Alias=MI0001794;Name=dre-mir-26a
+dre-mir-26a	miRBase	miRNA	21	42	.	+	.	ID=MIMAT0001794;Alias=MIMAT0001794;Name=dre-miR-26a-5p;Derives_from=MI0001794
+dre-mir-26a	miRBase	miRNA	53	74	.	-	.	ID=MIMAT0031947;Alias=MIMAT0031947;Name=dre-miR-26a-3p;Derives_from=MI0001794
+dre-mir-143	miRBase	miRNA_primary_transcript	1	92	.	+	.	ID=MI0001840;Alias=MI0001840;Name=dre-mir-143
+dre-mir-143	miRBase	miRNA	21	41	.	+	.	ID=MIMAT0001840;Alias=MIMAT0001840;Name=dre-miR-143;Derives_from=MI0001840
+dre-mir-143	miRBase	miRNA	52	72	.	-	.	ID=MIMAT0099002;Alias=MIMAT0099002;Name=dre-miR-143-3p;Derives_from=MI0001840
+dre-mir-181a-1	miRBase	miRNA_primary_transcript	1	96	.	+	.	ID=MI0001623;Alias=MI0001623;Name=dre-mir-181a-1
+dre-mir-181a-1	miRBase	miRNA	21	43	.	+	.	ID=MIMAT0001623;Alias=MIMAT0001623;Name=dre-miR-181a-5p;Derives_from=MI0001623
+dre-mir-181a-1	miRBase	miRNA	54	76	.	-	.	ID=MIMAT0001282;Alias=MIMAT0001282;Name=dre-miR-181a-3p;Derives_from=MI0001623

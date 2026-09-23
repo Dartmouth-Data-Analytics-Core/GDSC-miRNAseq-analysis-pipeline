@@ -1,0 +1,61 @@
+name: CI — Dry-run & Unit Tests
+
+on:
+  push:
+    branches: ["**"]
+
+jobs:
+  # -------------------------------------------------------
+  # 1. Snakemake dry-run: validates DAG + config parsing
+  # -------------------------------------------------------
+  dryrun:
+    name: Snakemake dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Snakemake
+        run: pip install snakemake pandas
+
+      - name: Dry-run (default — no spike-ins, no UMI tools)
+        run: |
+          snakemake --dry-run \
+            --configfile tests/fixtures/test_config.yaml \
+            --snakefile Snakefile
+
+      - name: Dry-run (with spike-ins)
+        run: |
+          snakemake --dry-run \
+            --configfile tests/fixtures/test_config_spikeins.yaml \
+            --snakefile Snakefile
+
+      - name: Dry-run (with UMI tools)
+        run: |
+          snakemake --dry-run \
+            --configfile tests/fixtures/test_config_umitools.yaml \
+            --snakefile Snakefile
+
+  # -------------------------------------------------------
+  # 2. Python unit tests for scripts/
+  # -------------------------------------------------------
+  unit-python:
+    name: Python unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          pip install pytest pandas numpy scikit-learn matplotlib seaborn plotnine scipy openpyxl
+
+      - name: Run Python unit tests
+        run: pytest tests/unit/ -v --tb=short --ignore=tests/unit/test_pivot.R
+

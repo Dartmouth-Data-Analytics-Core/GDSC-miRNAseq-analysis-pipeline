@@ -37,7 +37,7 @@ if (!dir.exists("spikein_metrics/qc_plots")) {
 # Spike-in raw counts
 spikes_obs <- read_tsv("spikein_counts/spikein.readcounts.tsv")
 # miRNA raw counts (aligned to miRBase)
-mirna_counts <- read_tsv("mirbase_counts/mirbase.readcounts.tsv")
+mirna_counts <- read_csv("miRNA_Quant/raw_merged_canonical_and_all_isomirs.csv")
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -167,7 +167,7 @@ per_sample_models <- spikes_detected %>%
 # -------------------------------------------------------------
 mirna_long <- mirna_counts %>%
   pivot_longer(
-    cols = -c(mirbase_ID, Length),
+    cols = -c(miRNA),
     names_to = "sample_id",
     values_to = "reads"
   ) %>%
@@ -243,17 +243,17 @@ mirna_normalized <- mirna_long %>%
     interval = round(fit - lwr, 2)
   ) %>%
   ungroup() %>%
-  select(mirbase_ID, Length, sample_id, reads, molecules_concentration)
+  select(miRNA, sample_id, reads, molecules_concentration)
 
 # Export normalized miRNA table (wide format)
 mirna_normalized %>%
   pivot_wider(
     names_from = sample_id,
     values_from = molecules_concentration,
-    id_cols = c(mirbase_ID, Length),
+    id_cols = c(miRNA),
     values_fill = 0
   ) %>%
-  write_tsv("spikein_metrics/normalized_scalefactor_mirbase_counts.tsv")
+  write_tsv("spikein_metrics/normalized_scalefactor_canon_and_isomir_counts.tsv")
 
 # -------------------------------------------------------------
 # Per-sample QC plots

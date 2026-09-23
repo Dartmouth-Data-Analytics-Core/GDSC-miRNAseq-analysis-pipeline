@@ -1,0 +1,30 @@
+name: mirtop
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.8
+
+  # Bioinformatics tools
+  - bedtools
+  - samtools
+
+  # Python stack
+  - pandas
+  - pysam
+  - pybedtools
+  - biopython
+  - pyyaml
+  - python-dateutil
+  - setuptools
+  - nose
+
+  # Utilities
+  - wget
+  - pip
+
+  # miRTOP via pip
+  - pip:
+      - mirtop

@@ -1,0 +1,9 @@
+name: bbmap
+channels:
+  - bioconda
+  - defaults
+  - conda-forge
+dependencies:
+  - bbmap=38.90
+  - pandas
+  - python>=3.8

@@ -1,25 +1,74 @@
 #!/bin/bash
 
-# Name of the job
-#SBATCH --job-name=mirna
-
-# Number of compute nodes
+#SBATCH --job-name=mirna                          
 #SBATCH --nodes=1
-
-# partition
 #SBATCH --partition=standard
-
-# account
-#SBATCH --account=nccc
-
-# Walltime (job duration)
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=16  
 #SBATCH --time=60:00:00
-
-# Email notifications (comma-separated options: BEGIN,END,FAIL)
+#SBATCH --mail-user=f007qps@dartmouth.edu
 #SBATCH --mail-type=FAIL
+#SBATCH --output=%x_%j.log
+#========================================================#
 
-source /optnfs/common/miniconda3/etc/profile.d/conda.sh
+#----- Specify Config (one of "human", "mouse", or "zebrafish", case-sensitive and needs to be in quotes.)
+CONFIG="human"
 
-conda activate /dartfs/rc/nosnapshots/G/GMBSR_refs/envs/snakemake
+#----- Environment information
+CONDA_BASE="/optnfs/common/miniconda3"
+SNAKEMAKE_ENV="/dartfs/rc/nosnapshots/G/GMBSR_refs/envs/snakemake"
+CONDA_PREFIX_PATH="/dartfs/rc/nosnapshots/G/GMBSR_refs/envs/GDSC-Clover-Seq"
+CONTAINERS_PATH="/dartfs-hpc/rc/lab/G/GMBSR_bioinfo/misc/shared-software/singularity-containers/miRNA-v2/"
+source "${CONDA_BASE}/etc/profile.d/conda.sh"
+conda activate "${SNAKEMAKE_ENV}"
 
-snakemake -s Snakefile --profile cluster_profile -T 2 --use-conda --conda-frontend conda --conda-prefix /dartfs/rc/nosnapshots/G/GMBSR_refs/envs/miRNAseq
+#----- LOGGER
+cat <<EOF
+#───────────────────────── Initialization ──────────────────────────#
+Running GDSC-miRNASeq Pipeline for ${CONFIG} with Snakemake $(snakemake --version)
+
+Job:        $SLURM_JOB_NAME
+Job ID:     $SLURM_JOB_ID
+Node:       $(hostname)
+Start time: $(date)
+Work dir:   $(pwd)
+Conda base: $CONDA_BASE
+Snakemake:  $SNAKEMAKE_ENV
+Binary:     $(which snakemake)
+SIFs:       $CONTAINERS_PATH
+Organism:   $CONFIG
+#───────────────────────── Initialization ──────────────────────────#
+
+SNAKEMAKE LOG:
+EOF
+
+#----- Make slurm logs
+mkdir -p slurm_logs
+
+#----- Singularity arguments
+SINGARGS="--bind /dartfs-hpc --bind /dartfs"
+
+#----- Invoke Snakemake
+snakemake -s \
+    Snakefile \
+    --configfile prebuilt_configs/"${CONFIG}"_config.yaml \
+    --profile cluster_profile \
+    -T 2 \
+    --use-singularity \
+    --singularity-args "${SINGARGS}"
+
+#----- Capture exit status
+SNAKEMAKE_EXIT=$?
+
+#----- Final status
+echo ""
+echo "#------------------------ Job Complete ------------------------#"
+echo "End time: $(date)"
+if [ $SNAKEMAKE_EXIT -eq 0 ]; then
+    echo "Status: SUCCESS"
+else
+    echo "Status: FAILED (exit code: $SNAKEMAKE_EXIT)"
+fi
+
+exit $SNAKEMAKE_EXIT
+echo "End time: $(date)"
